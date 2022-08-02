@@ -19,6 +19,7 @@ use node::Node;
 mod hash;
 mod node;
 
+#[derive(Debug)]
 pub enum EdgeError {
     NoSuchDependents,
 }
@@ -56,28 +57,43 @@ where
     /// Add a new payload with a required set of dependency_ids. This method will construct a new node
     /// and add it to the DAG with the given payload item and dependency id set. It is idempotent for any
     /// given set of inputs.
-    pub fn add_node(
-        &mut self,
+    pub fn add_node<'a>(
+        &'a mut self,
         item: N,
         dependency_ids: BTreeSet<[u8; HASH_LEN]>,
-    ) -> Result<(), EdgeError> {
+    ) -> Result<[u8; HASH_LEN], EdgeError> {
         let node = Node::<N, HW, HASH_LEN>::new(item, dependency_ids.clone());
-        let id = node.id();
-        if self.roots.contains(id) {
+        let id = node.id().clone();
+        if self.nodes.contains_key(&id) {
             // We've already added this node so there is nothing left to do.
-            return Ok(());
+            return Ok(id);
         }
         for dep_id in dependency_ids.iter() {
             if !self.nodes.contains_key(dep_id) {
                 return Err(EdgeError::NoSuchDependents);
             }
+            // If any of our dependencies is in the roots pointer list then
+            // it is time to remove it from there.
+            if self.roots.contains(dep_id) {
+                self.roots.remove(dep_id);
+            }
         }
-        Ok(())
+        self.roots.insert(id.clone());
+        self.nodes.insert(id.clone(), node);
+        Ok(id)
     }
 
     /// Get a node from the DAG by it's hash identifier if it exists.
     pub fn get_node_by_id(&self, id: &[u8; HASH_LEN]) -> Option<&Node<N, HW, HASH_LEN>> {
         self.nodes.get(id)
+    }
+
+    pub fn get_roots(&self) -> &BTreeSet<[u8; HASH_LEN]> {
+        &self.roots
+    }
+
+    pub fn get_nodes(&self) -> &BTreeMap<[u8; HASH_LEN], Node<N, HW, HASH_LEN>> {
+        &self.nodes
     }
 
     // TODO(jwall): How to specify a partial ordering for nodes in a graph?
@@ -95,3 +111,6 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod test;

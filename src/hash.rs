@@ -45,3 +45,12 @@ where
         self.finish().to_le_bytes()
     }
 }
+
+impl<S> ByteEncoder for S
+where
+    S: ToString,
+{
+    fn bytes(&self) -> Vec<u8> {
+        self.to_string().into_bytes()
+    }
+}

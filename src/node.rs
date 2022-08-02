@@ -25,6 +25,7 @@ use crate::hash::{ByteEncoder, HashWriter};
 /// Nodes are tied to a specific implementation of the HashWriter trait which is itself tied
 /// to the DAG they are stored in guaranteeing that the same Hashing implementation is used
 /// for each node in the DAG.
+#[derive(Debug, PartialEq)]
 pub struct Node<N, HW, const HASH_LEN: usize>
 where
     N: ByteEncoder,
@@ -70,7 +71,7 @@ where
         }
     }
 
-    pub fn id(&self) -> &[u8] {
+    pub fn id(&self) -> &[u8; HASH_LEN] {
         &self.id
     }
 
