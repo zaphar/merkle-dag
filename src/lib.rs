@@ -34,19 +34,19 @@ pub enum EdgeError {
 ///
 /// A merkle DAG instance is tied to a specific implementation of the HashWriter interface to ensure
 /// that all hash identifiers are of the same hash algorithm.
-pub struct DAG<N, HW>
+pub struct DAG<N, HW, const HASH_LEN: usize>
 where
     N: ByteEncoder,
-    HW: HashWriter,
+    HW: HashWriter<HASH_LEN>,
 {
-    roots: BTreeSet<Vec<u8>>,
-    nodes: BTreeMap<Vec<u8>, Node<N, HW>>,
+    roots: BTreeSet<[u8; HASH_LEN]>,
+    nodes: BTreeMap<[u8; HASH_LEN], Node<N, HW, HASH_LEN>>,
 }
 
-impl<N, HW> DAG<N, HW>
+impl<N, HW, const HASH_LEN: usize> DAG<N, HW, HASH_LEN>
 where
     N: ByteEncoder,
-    HW: HashWriter,
+    HW: HashWriter<HASH_LEN>,
 {
     /// Construct a new empty DAG. The empty DAG is also the default for a DAG.
     pub fn new() -> Self {
@@ -59,9 +59,9 @@ where
     pub fn add_node(
         &mut self,
         item: N,
-        dependency_ids: BTreeSet<Vec<u8>>,
+        dependency_ids: BTreeSet<[u8; HASH_LEN]>,
     ) -> Result<(), EdgeError> {
-        let node = Node::<N, HW>::new(item, dependency_ids.clone());
+        let node = Node::<N, HW, HASH_LEN>::new(item, dependency_ids.clone());
         let id = node.id();
         if self.roots.contains(id) {
             // We've already added this node so there is nothing left to do.
@@ -76,15 +76,17 @@ where
     }
 
     /// Get a node from the DAG by it's hash identifier if it exists.
-    pub fn get_node_by_id(&self, id: &Vec<u8>) -> Option<&Node<N, HW>> {
+    pub fn get_node_by_id(&self, id: &[u8; HASH_LEN]) -> Option<&Node<N, HW, HASH_LEN>> {
         self.nodes.get(id)
     }
+
+    // TODO(jwall): How to specify a partial ordering for nodes in a graph?
 }
 
-impl<N, HW> Default for DAG<N, HW>
+impl<N, HW, const HASH_LEN: usize> Default for DAG<N, HW, HASH_LEN>
 where
     N: ByteEncoder,
-    HW: HashWriter,
+    HW: HashWriter<HASH_LEN>,
 {
     fn default() -> Self {
         Self {

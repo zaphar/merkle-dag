@@ -25,21 +25,25 @@ use crate::hash::{ByteEncoder, HashWriter};
 /// Nodes are tied to a specific implementation of the HashWriter trait which is itself tied
 /// to the DAG they are stored in guaranteeing that the same Hashing implementation is used
 /// for each node in the DAG.
-pub struct Node<N, HW> {
-    id: Vec<u8>,
+pub struct Node<N, HW, const HASH_LEN: usize>
+where
+    N: ByteEncoder,
+    HW: HashWriter<HASH_LEN>,
+{
+    id: [u8; HASH_LEN],
     item: N,
-    item_id: Vec<u8>,
-    dependency_ids: BTreeSet<Vec<u8>>,
+    item_id: [u8; HASH_LEN],
+    dependency_ids: BTreeSet<[u8; HASH_LEN]>,
     _phantom: PhantomData<HW>,
 }
 
-impl<N, HW> Node<N, HW>
+impl<N, HW, const HASH_LEN: usize> Node<N, HW, HASH_LEN>
 where
     N: ByteEncoder,
-    HW: HashWriter,
+    HW: HashWriter<HASH_LEN>,
 {
     /// Construct a new node with a payload and a set of dependency_ids.
-    pub fn new(item: N, dependency_ids: BTreeSet<Vec<u8>>) -> Self {
+    pub fn new(item: N, dependency_ids: BTreeSet<[u8; HASH_LEN]>) -> Self {
         let mut hw = HW::default();
 
         // NOTE(jwall): The order here is important. Our reliable id creation must be stable
@@ -48,7 +52,10 @@ where
         hw.record(item.bytes().into_iter());
         let item_id = hw.hash();
         // 2. Sort the dependency ids before recording them into our node id hash.
-        let mut dependency_list = dependency_ids.iter().cloned().collect::<Vec<Vec<u8>>>();
+        let mut dependency_list = dependency_ids
+            .iter()
+            .cloned()
+            .collect::<Vec<[u8; HASH_LEN]>>();
         dependency_list.sort();
         // 3. record the dependency ids into our node id hash in the sorted order.
         for d in dependency_list.iter() {
@@ -71,11 +78,11 @@ where
         &self.item
     }
 
-    pub fn item_id(&self) -> &Vec<u8> {
+    pub fn item_id(&self) -> &[u8; HASH_LEN] {
         &self.item_id
     }
 
-    pub fn dependency_ids(&self) -> &BTreeSet<Vec<u8>> {
+    pub fn dependency_ids(&self) -> &BTreeSet<[u8; HASH_LEN]> {
         &self.dependency_ids
     }
 }
