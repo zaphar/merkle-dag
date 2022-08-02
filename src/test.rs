@@ -61,3 +61,25 @@ fn test_adding_nodes_is_idempotent() {
     assert_eq!(root_size, dag.get_roots().len());
     assert_eq!(nodes_size, dag.get_nodes().len());
 }
+
+#[test]
+fn test_adding_nodes_is_idempotent_regardless_of_dep_order() {
+    let mut dag = DAG::<&str, DefaultHasher, 8>::new();
+    let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
+    let qualm_node_id = dag.add_node("qualm", BTreeSet::new()).unwrap();
+    let quell_node_id = dag.add_node("quell", BTreeSet::new()).unwrap();
+    let dep_ids = BTreeSet::from([quake_node_id, qualm_node_id, quell_node_id]);
+    dag.add_node("foo", dep_ids).unwrap();
+    let root_size = dag.get_roots().len();
+    let nodes_size = dag.get_nodes().len();
+
+    let dep_ids = BTreeSet::from([quell_node_id, quake_node_id, qualm_node_id]);
+    dag.add_node("foo", dep_ids).unwrap();
+    assert_eq!(root_size, dag.get_roots().len());
+    assert_eq!(nodes_size, dag.get_nodes().len());
+
+    let dep_ids = BTreeSet::from([qualm_node_id, quell_node_id, quake_node_id]);
+    dag.add_node("foo", dep_ids).unwrap();
+    assert_eq!(root_size, dag.get_roots().len());
+    assert_eq!(nodes_size, dag.get_nodes().len());
+}

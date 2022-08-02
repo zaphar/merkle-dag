@@ -23,6 +23,8 @@ mod node;
 pub enum EdgeError {
     NoSuchDependents,
 }
+// TODO(jwall): In order to avoid copies it is probably smart to have some concept of
+//  a node pool.
 
 /// A Merkle-DAG implementation. This is a modification on the standard Merkle Tree data structure
 /// but instead of a tree it is a DAG and as a result can have multiple roots. A merkle-dag specifies
@@ -114,3 +116,6 @@ where
 
 #[cfg(test)]
 mod test;
+
+#[cfg(all(test, feature = "proptest"))]
+mod proptest;

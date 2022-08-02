@@ -8,3 +8,10 @@ license = "Apache License 2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+
+[dependencies.proptest]
+version = "1.0.0"
+optional = true
+
+[features]
+default = []
