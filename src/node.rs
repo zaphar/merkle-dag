@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 // Copyright 2022 Jeremy Wall (Jeremy@marzhilsltudios.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,12 +11,25 @@ use std::marker::PhantomData;
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use std::{collections::BTreeSet, marker::PhantomData};
+
 use crate::hash::{ByteEncoder, HashWriter};
 
+/// A node in a merkle DAG. Nodes are composed of a payload item and a set of dependency_ids.
+/// They provide a unique identifier that is formed from the bytes of the payload as well
+/// as the bytes of the dependency_ids. This is guaranteed to be the id for the same payload
+/// and dependency ids every time making Nodes content-addressable.
+///
+/// Nodes also expose the unique content address of the item payload alone as a convenience.
+///
+/// Nodes are tied to a specific implementation of the HashWriter trait which is itself tied
+/// to the DAG they are stored in guaranteeing that the same Hashing implementation is used
+/// for each node in the DAG.
 pub struct Node<N, HW> {
     id: Vec<u8>,
     item: N,
-    dependency_ids: Vec<Vec<u8>>,
+    item_id: Vec<u8>,
+    dependency_ids: BTreeSet<Vec<u8>>,
     _phantom: PhantomData<HW>,
 }
 
@@ -27,16 +38,26 @@ where
     N: ByteEncoder,
     HW: HashWriter,
 {
-    pub fn new(item: N, mut dependency_ids: Vec<Vec<u8>>) -> Self {
+    /// Construct a new node with a payload and a set of dependency_ids.
+    pub fn new(item: N, dependency_ids: BTreeSet<Vec<u8>>) -> Self {
         let mut hw = HW::default();
-        dependency_ids.sort();
+
+        // NOTE(jwall): The order here is important. Our reliable id creation must be stable
+        // for multiple calls to this constructor. This means that we must *always*
+        // 1. Record the `item_id` hash first.
         hw.record(item.bytes().into_iter());
-        for d in dependency_ids.iter() {
+        let item_id = hw.hash();
+        // 2. Sort the dependency ids before recording them into our node id hash.
+        let mut dependency_list = dependency_ids.iter().cloned().collect::<Vec<Vec<u8>>>();
+        dependency_list.sort();
+        // 3. record the dependency ids into our node id hash in the sorted order.
+        for d in dependency_list.iter() {
             hw.record(d.iter().cloned());
         }
         Self {
             id: hw.hash(),
             item,
+            item_id,
             dependency_ids,
             _phantom: PhantomData,
         }
@@ -50,7 +71,11 @@ where
         &self.item
     }
 
-    pub fn dependency_ids(&self) -> &Vec<Vec<u8>> {
+    pub fn item_id(&self) -> &Vec<u8> {
+        &self.item_id
+    }
+
+    pub fn dependency_ids(&self) -> &BTreeSet<Vec<u8>> {
         &self.dependency_ids
     }
 }
