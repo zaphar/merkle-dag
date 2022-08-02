@@ -38,9 +38,11 @@ proptest! {
         let mut dag = DAG::<String, DefaultHasher, 8>::new();
         let parent_count = parent_idxs.len();
         let mut dependents = BTreeMap::new();
+        let mut node_set = BTreeSet::new();
         for (idx, n) in nodes.iter().cloned().enumerate() {
             if !parent_idxs.contains(&idx) {
                 let node_id = dag.add_node(n, BTreeSet::new()).unwrap();
+                node_set.insert(node_id.clone());
                 let parent = idx % parent_count;
                 if dependents.contains_key(&parent) {
                     dependents.get_mut(&parent).map(|v: &mut BTreeSet<[u8; 8]>| v.insert(node_id));
@@ -50,9 +52,10 @@ proptest! {
             }
         }
         for (pidx, dep_ids) in dependents {
-            dag.add_node(nodes[pidx].clone(), dep_ids).unwrap();
+            let node_id = dag.add_node(nodes[pidx].clone(), dep_ids).unwrap();
+            node_set.insert(node_id.clone());
         }
         assert!(dag.get_roots().len() <= parent_count);
-        assert!(dag.get_nodes().len() <= nodes.len());
+        assert!(dag.get_nodes().len() == node_set.len());
     }
 }
