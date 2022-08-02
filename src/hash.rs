@@ -46,11 +46,11 @@ where
     }
 }
 
-impl<S> ByteEncoder for S
+impl<V> ByteEncoder for V
 where
-    S: ToString,
+    V: Into<Vec<u8>> + Clone,
 {
     fn bytes(&self) -> Vec<u8> {
-        self.to_string().into_bytes()
+        <Self as Into<Vec<u8>>>::into(self.clone())
     }
 }
