@@ -83,3 +83,73 @@ fn test_adding_nodes_is_idempotent_regardless_of_dep_order() {
     assert_eq!(root_size, dag.get_roots().len());
     assert_eq!(nodes_size, dag.get_nodes().len());
 }
+
+#[test]
+fn test_node_comparison_equivalent() {
+    let mut dag = DAG::<&str, DefaultHasher, 8>::new();
+    let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
+    assert_eq!(
+        dag.compare(&quake_node_id, &quake_node_id),
+        NodeCompare::Equivalent
+    );
+}
+
+#[test]
+fn test_node_comparison_before() {
+    let mut dag = DAG::<&str, DefaultHasher, 8>::new();
+    let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
+    let qualm_node_id = dag
+        .add_node("qualm", BTreeSet::from([quake_node_id.clone()]))
+        .unwrap();
+    let quell_node_id = dag
+        .add_node("quell", BTreeSet::from([qualm_node_id.clone()]))
+        .unwrap();
+    assert_eq!(
+        dag.compare(&quake_node_id, &qualm_node_id),
+        NodeCompare::Before
+    );
+    assert_eq!(
+        dag.compare(&quake_node_id, &quell_node_id),
+        NodeCompare::Before
+    );
+}
+
+#[test]
+fn test_node_comparison_after() {
+    let mut dag = DAG::<&str, DefaultHasher, 8>::new();
+    let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
+    let qualm_node_id = dag
+        .add_node("qualm", BTreeSet::from([quake_node_id.clone()]))
+        .unwrap();
+    let quell_node_id = dag
+        .add_node("quell", BTreeSet::from([qualm_node_id.clone()]))
+        .unwrap();
+    assert_eq!(
+        dag.compare(&qualm_node_id, &quake_node_id),
+        NodeCompare::After
+    );
+    assert_eq!(
+        dag.compare(&quell_node_id, &quake_node_id),
+        NodeCompare::After
+    );
+}
+
+#[test]
+fn test_node_comparison_no_shared_graph() {
+    let mut dag = DAG::<&str, DefaultHasher, 8>::new();
+    let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
+    let qualm_node_id = dag.add_node("qualm", BTreeSet::new()).unwrap();
+    let quell_node_id = dag.add_node("quell", BTreeSet::new()).unwrap();
+    assert_eq!(
+        dag.compare(&qualm_node_id, &quake_node_id),
+        NodeCompare::Uncomparable
+    );
+    assert_eq!(
+        dag.compare(&quell_node_id, &quake_node_id),
+        NodeCompare::Uncomparable
+    );
+    assert_eq!(
+        dag.compare(&quell_node_id, &qualm_node_id),
+        NodeCompare::Uncomparable
+    );
+}

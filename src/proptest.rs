@@ -19,7 +19,6 @@ use crate::DAG;
 fn edge_strategy(nodes_count: usize) -> impl Strategy<Value = (Vec<String>, BTreeSet<usize>)> {
     prop::collection::vec(".*", 4..nodes_count).prop_flat_map(|payloads| {
         let nodes_len = payloads.len();
-        // TODO(jwall): Generate valid DAGs
         // select a random set of payloads to be roots.
         // select a random set of non root payloads to be dependencies
         (

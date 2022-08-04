@@ -19,12 +19,18 @@ use node::Node;
 mod hash;
 mod node;
 
+#[derive(PartialEq, Debug)]
+pub enum NodeCompare {
+    After,
+    Before,
+    Equivalent,
+    Uncomparable,
+}
+
 #[derive(Debug)]
 pub enum EdgeError {
     NoSuchDependents,
 }
-// TODO(jwall): In order to avoid copies it is probably smart to have some concept of
-//  a node pool.
 
 /// A Merkle-DAG implementation. This is a modification on the standard Merkle Tree data structure
 /// but instead of a tree it is a DAG and as a result can have multiple roots. A merkle-dag specifies
@@ -98,7 +104,53 @@ where
         &self.nodes
     }
 
-    // TODO(jwall): How to specify a partial ordering for nodes in a graph?
+    /// Compare two nodes by id in the graph. If the left id is an ancestor of the right node
+    /// then `returns `NodeCompare::Before`. If the right id is an ancestor of the left node
+    /// then returns `NodeCompare::After`. If both id's are equal then the returns
+    /// `NodeCompare::Equivalent`. If neither id are parts of the same subgraph then returns
+    /// `NodeCompare::Uncomparable`.
+    pub fn compare(&self, left: &[u8; HASH_LEN], right: &[u8; HASH_LEN]) -> NodeCompare {
+        if left == right {
+            NodeCompare::Equivalent
+        } else {
+            // Is left node an ancestor of right node?
+            if self.search_graph(right, left) {
+                NodeCompare::Before
+                // is right node an ancestor of left node?
+            } else if self.search_graph(left, right) {
+                NodeCompare::After
+            } else {
+                NodeCompare::Uncomparable
+            }
+        }
+    }
+
+    fn search_graph(&self, root_id: &[u8; HASH_LEN], search_id: &[u8; HASH_LEN]) -> bool {
+        if root_id == search_id {
+            return true;
+        }
+        let root_node = match self.get_node_by_id(root_id) {
+            Some(n) => n,
+            None => {
+                return false;
+            }
+        };
+        let mut stack = vec![root_node];
+        while !stack.is_empty() {
+            let node = stack.pop().unwrap();
+            let deps = node.dependency_ids();
+            for dep in deps {
+                if search_id == dep {
+                    return true;
+                }
+                stack.push(match self.get_node_by_id(dep) {
+                    Some(n) => n,
+                    None => panic!("Invalid DAG STATE encountered"),
+                })
+            }
+        }
+        return false;
+    }
 }
 
 impl<N, HW, const HASH_LEN: usize> Default for DAG<N, HW, HASH_LEN>
