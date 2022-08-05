@@ -14,25 +14,61 @@
 use proptest::prelude::*;
 use std::collections::{hash_map::DefaultHasher, BTreeMap, BTreeSet};
 
-use crate::DAG;
+use crate::{NodeCompare, DAG};
 
-fn edge_strategy(nodes_count: usize) -> impl Strategy<Value = (Vec<String>, BTreeSet<usize>)> {
+fn simple_edge_strategy(
+    nodes_count: usize,
+) -> impl Strategy<Value = (Vec<String>, BTreeSet<usize>)> {
     prop::collection::vec(".*", 4..nodes_count).prop_flat_map(|payloads| {
         let nodes_len = payloads.len();
-        // select a random set of payloads to be roots.
-        // select a random set of non root payloads to be dependencies
         (
             // our total list of nodes.
             Just(payloads),
-            // our random list of roots.
+            // our list of roots.
             prop::collection::btree_set(1..nodes_len, 1..(nodes_len / 2)),
         )
     })
 }
 
+fn complex_dag_strategy(
+    nodes_count: usize,
+    depth: usize,
+    branch: usize,
+) -> impl Strategy<Value = DAG<String, std::collections::hash_map::DefaultHasher, 8>> {
+    prop::collection::vec(".*", depth..nodes_count).prop_flat_map(move |payloads| {
+        let nodes_len = payloads.len();
+        let mut dag = DAG::<String, std::collections::hash_map::DefaultHasher, 8>::new();
+        // partition the payloads into depth pieces
+        let mut id_stack: Vec<[u8; 8]> = Vec::new();
+        for chunk in payloads.chunks(nodes_len / depth) {
+            // loop through the partions adding each partions nodes to the dag.
+            let dep_sets: Vec<BTreeSet<[u8; 8]>> = if id_stack.is_empty() {
+                vec![BTreeSet::new()]
+            } else {
+                let mut dep_sets = Vec::new();
+                for id_chunk in id_stack.chunks(branch) {
+                    let id_set = id_chunk.iter().fold(BTreeSet::new(), |mut acc, item| {
+                        acc.insert(item.clone());
+                        acc
+                    });
+                    dep_sets.push(id_set);
+                }
+                dep_sets
+            };
+            let dep_set_len = dep_sets.len();
+            for (idx, p) in chunk.iter().enumerate() {
+                let dep_idx = idx % dep_set_len;
+                let dep_set = dep_sets[dep_idx].clone();
+                id_stack.push(dag.add_node(p.clone(), dep_set).unwrap().clone());
+            }
+        }
+        Just(dag)
+    })
+}
+
 proptest! {
     #[test]
-    fn test_dag_add_node_properties((nodes, parent_idxs) in edge_strategy(100)) {
+    fn test_dag_add_node_properties((nodes, parent_idxs) in simple_edge_strategy(100)) {
         // TODO implement the tests now
         let mut dag = DAG::<String, DefaultHasher, 8>::new();
         let parent_count = parent_idxs.len();
@@ -56,5 +92,39 @@ proptest! {
         }
         assert!(dag.get_roots().len() <= parent_count);
         assert!(dag.get_nodes().len() == node_set.len());
+    }
+}
+
+proptest! {
+    #[test]
+    fn test_complex_dag_node_properties(dag in complex_dag_strategy(100, 10, 3)) {
+        // TODO(jwall): We can assert much more about the DAG if we get more clever in what we return.
+        let nodes = dag.get_nodes();
+        assert!(nodes.len() <= 100);
+
+        let roots = dag.get_roots();
+        assert!(roots.len() < dag.get_nodes().len());
+
+        for node_id in nodes.keys() {
+            let mut is_descendant = false;
+            if roots.contains(node_id) {
+                continue;
+            }
+            for root in roots.iter() {
+                if let NodeCompare::After = dag.compare(root, node_id) {
+                    // success
+                    is_descendant = true;
+                }
+            }
+            assert!(is_descendant);
+        }
+        // Check that every root node is uncomparable.
+        for left_root in roots.iter() {
+            for right_root in roots.iter() {
+                if left_root != right_root {
+                    assert_eq!(dag.compare(left_root, right_root), NodeCompare::Uncomparable);
+                }
+            }
+        }
     }
 }

@@ -47,6 +47,7 @@ pub enum EdgeError {
 ///
 /// A merkle DAG instance is tied to a specific implementation of the HashWriter interface to ensure
 /// that all hash identifiers are of the same hash algorithm.
+#[derive(Clone, Debug)]
 pub struct DAG<N, HW, const HASH_LEN: usize>
 where
     N: ByteEncoder,
