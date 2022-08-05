@@ -15,6 +15,7 @@ pub mod dag;
 pub mod hash;
 pub mod node;
 pub mod prelude;
+pub mod store;
 
 #[cfg(test)]
 mod test;

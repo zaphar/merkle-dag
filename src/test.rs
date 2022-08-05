@@ -12,13 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use std::collections::hash_map::DefaultHasher;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::prelude::*;
 
+type TestDag<'a> = Merkle<
+    BTreeMap<[u8; 8], Node<&'a str, std::collections::hash_map::DefaultHasher, 8>>,
+    &'a str,
+    std::collections::hash_map::DefaultHasher,
+    8,
+>;
+
 #[test]
 fn test_root_pointer_hygiene() {
-    let mut dag = Merkle::<&str, DefaultHasher, 8>::new();
+    let mut dag = TestDag::new();
     let quax_node_id = dag.add_node("quax", BTreeSet::new()).unwrap();
     assert_eq!(
         quax_node_id,
@@ -39,7 +46,7 @@ fn test_root_pointer_hygiene() {
 #[test]
 fn test_insert_no_such_dependents_error() {
     let missing_dependent = Node::<&str, DefaultHasher, 8>::new("missing", BTreeSet::new());
-    let mut dag = Merkle::<&str, DefaultHasher, 8>::new();
+    let mut dag = TestDag::new();
     let mut dep_set = BTreeSet::new();
     dep_set.insert(*missing_dependent.id());
     assert!(dag.add_node("foo", dep_set).is_err());
@@ -49,7 +56,7 @@ fn test_insert_no_such_dependents_error() {
 
 #[test]
 fn test_adding_nodes_is_idempotent() {
-    let mut dag = Merkle::<&str, DefaultHasher, 8>::new();
+    let mut dag = TestDag::new();
     let quax_node_id = dag.add_node("quax", BTreeSet::new()).unwrap();
     assert_eq!(
         quax_node_id,
@@ -65,7 +72,7 @@ fn test_adding_nodes_is_idempotent() {
 
 #[test]
 fn test_adding_nodes_is_idempotent_regardless_of_dep_order() {
-    let mut dag = Merkle::<&str, DefaultHasher, 8>::new();
+    let mut dag = TestDag::new();
     let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
     let qualm_node_id = dag.add_node("qualm", BTreeSet::new()).unwrap();
     let quell_node_id = dag.add_node("quell", BTreeSet::new()).unwrap();
@@ -87,7 +94,7 @@ fn test_adding_nodes_is_idempotent_regardless_of_dep_order() {
 
 #[test]
 fn test_node_comparison_equivalent() {
-    let mut dag = Merkle::<&str, DefaultHasher, 8>::new();
+    let mut dag = TestDag::new();
     let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
     assert_eq!(
         dag.compare(&quake_node_id, &quake_node_id),
@@ -97,7 +104,7 @@ fn test_node_comparison_equivalent() {
 
 #[test]
 fn test_node_comparison_before() {
-    let mut dag = Merkle::<&str, DefaultHasher, 8>::new();
+    let mut dag = TestDag::new();
     let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
     let qualm_node_id = dag
         .add_node("qualm", BTreeSet::from([quake_node_id.clone()]))
@@ -117,7 +124,7 @@ fn test_node_comparison_before() {
 
 #[test]
 fn test_node_comparison_after() {
-    let mut dag = Merkle::<&str, DefaultHasher, 8>::new();
+    let mut dag = TestDag::new();
     let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
     let qualm_node_id = dag
         .add_node("qualm", BTreeSet::from([quake_node_id.clone()]))
@@ -137,7 +144,7 @@ fn test_node_comparison_after() {
 
 #[test]
 fn test_node_comparison_no_shared_graph() {
-    let mut dag = Merkle::<&str, DefaultHasher, 8>::new();
+    let mut dag = TestDag::new();
     let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
     let qualm_node_id = dag.add_node("qualm", BTreeSet::new()).unwrap();
     let quell_node_id = dag.add_node("quell", BTreeSet::new()).unwrap();

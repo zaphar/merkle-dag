@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::{collections::BTreeSet, marker::PhantomData};
 
-use crate::hash::{ByteEncoder, HashWriter};
-use crate::node::Node;
+use crate::{
+    hash::{ByteEncoder, HashWriter},
+    node::Node,
+    store::{Store, StoreError},
+};
 
 /// Node comparison values. In a given Merkle DAG a Node can come `After`, `Before`, be `Equivalent`, or `Uncomparable`.
 /// If the two nodes have the same id they are eqivalent. If two nodes are not part of the same sub graph within the DAG
@@ -27,11 +30,6 @@ pub enum NodeCompare {
     Before,
     Equivalent,
     Uncomparable,
-}
-
-#[derive(Debug)]
-pub enum EdgeError {
-    NoSuchDependents,
 }
 
 /// A Merkle-DAG implementation. This is a modification on the standard Merkle Tree data structure
@@ -46,19 +44,22 @@ pub enum EdgeError {
 /// A merkle DAG instance is tied to a specific implementation of the HashWriter interface to ensure
 /// that all hash identifiers are of the same hash algorithm.
 #[derive(Clone, Debug)]
-pub struct Merkle<N, HW, const HASH_LEN: usize>
+pub struct Merkle<S, N, HW, const HASH_LEN: usize>
 where
     N: ByteEncoder,
     HW: HashWriter<HASH_LEN>,
+    S: Store<N, HW, HASH_LEN>,
 {
     roots: BTreeSet<[u8; HASH_LEN]>,
-    nodes: BTreeMap<[u8; HASH_LEN], Node<N, HW, HASH_LEN>>,
+    nodes: S,
+    _phantom_node: PhantomData<Node<N, HW, HASH_LEN>>,
 }
 
-impl<N, HW, const HASH_LEN: usize> Merkle<N, HW, HASH_LEN>
+impl<S, N, HW, const HASH_LEN: usize> Merkle<S, N, HW, HASH_LEN>
 where
     N: ByteEncoder,
     HW: HashWriter<HASH_LEN>,
+    S: Store<N, HW, HASH_LEN>,
 {
     /// Construct a new empty DAG. The empty DAG is also the default for a DAG.
     pub fn new() -> Self {
@@ -75,31 +76,35 @@ where
         &'a mut self,
         item: N,
         dependency_ids: BTreeSet<[u8; HASH_LEN]>,
-    ) -> Result<[u8; HASH_LEN], EdgeError> {
+    ) -> Result<[u8; HASH_LEN], StoreError> {
         let node = Node::<N, HW, HASH_LEN>::new(item, dependency_ids.clone());
         let id = node.id().clone();
-        if self.nodes.contains_key(&id) {
+        if self.nodes.contains(&id) {
             // We've already added this node so there is nothing left to do.
             return Ok(id);
         }
+        let mut root_removals = Vec::new();
         for dep_id in dependency_ids.iter() {
-            if !self.nodes.contains_key(dep_id) {
-                return Err(EdgeError::NoSuchDependents);
+            if !self.nodes.contains(dep_id) {
+                return Err(StoreError::NoSuchDependents);
             }
             // If any of our dependencies is in the roots pointer list then
-            // it is time to remove it from there.
+            // we need to remove it below.
             if self.roots.contains(dep_id) {
-                self.roots.remove(dep_id);
+                root_removals.push(dep_id);
             }
         }
-        self.roots.insert(id.clone());
-        self.nodes.insert(id.clone(), node);
+        self.nodes.store(node)?;
+        for removal in root_removals {
+            self.roots.remove(removal);
+        }
+        self.roots.insert(id);
         Ok(id)
     }
 
     /// Check if we already have a copy of a node.
     pub fn check_for_node(&self, id: &[u8; HASH_LEN]) -> bool {
-        return self.nodes.contains_key(id);
+        return self.nodes.contains(id);
     }
 
     /// Get a node from the DAG by it's hash identifier if it exists.
@@ -113,7 +118,7 @@ where
     }
 
     /// Get the map of all nodes in the DAG.
-    pub fn get_nodes(&self) -> &BTreeMap<[u8; HASH_LEN], Node<N, HW, HASH_LEN>> {
+    pub fn get_nodes(&self) -> &S {
         &self.nodes
     }
 
@@ -166,15 +171,17 @@ where
     }
 }
 
-impl<N, HW, const HASH_LEN: usize> Default for Merkle<N, HW, HASH_LEN>
+impl<S, N, HW, const HASH_LEN: usize> Default for Merkle<S, N, HW, HASH_LEN>
 where
     N: ByteEncoder,
     HW: HashWriter<HASH_LEN>,
+    S: Store<N, HW, HASH_LEN>,
 {
     fn default() -> Self {
         Self {
             roots: BTreeSet::new(),
-            nodes: BTreeMap::new(),
+            nodes: S::default(),
+            _phantom_node: Default::default(),
         }
     }
 }
