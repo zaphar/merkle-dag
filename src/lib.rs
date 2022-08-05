@@ -19,6 +19,10 @@ use node::Node;
 mod hash;
 mod node;
 
+/// Node comparison values. In a given Merkle DAG a Node can come `After`, `Before`, be `Equivalent`, or `Uncomparable`.
+/// If the two nodes have the same id they are eqivalent. If two nodes are not part of the same sub graph within the DAG
+/// then they are Uncomparable. If one node is an ancestor of another DAG then that node comes before the other. If the
+/// reverse is true then that node comes after the other.
 #[derive(PartialEq, Debug)]
 pub enum NodeCompare {
     After,
@@ -96,10 +100,12 @@ where
         self.nodes.get(id)
     }
 
+    /// Get the set of root node ids.
     pub fn get_roots(&self) -> &BTreeSet<[u8; HASH_LEN]> {
         &self.roots
     }
 
+    /// Get the map of all nodes in the DAG.
     pub fn get_nodes(&self) -> &BTreeMap<[u8; HASH_LEN], Node<N, HW, HASH_LEN>> {
         &self.nodes
     }

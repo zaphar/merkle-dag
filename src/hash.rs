@@ -16,6 +16,7 @@ use std::hash::Hasher;
 
 /// Utility Trait to specify that payloads must be serializable into bytes.
 pub trait ByteEncoder {
+    /// Serialize self into bytes.
     fn bytes(&self) -> Vec<u8>;
 }
 
