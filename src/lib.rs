@@ -70,6 +70,9 @@ where
     /// Add a new payload with a required set of dependency_ids. This method will construct a new node
     /// and add it to the DAG with the given payload item and dependency id set. It is idempotent for any
     /// given set of inputs.
+    ///
+    /// One result of not constructing/adding nodes in this way is that we ensure that we always satisfy
+    /// the implementation rule in the merkel-crdt's whitepaper.
     pub fn add_node<'a>(
         &'a mut self,
         item: N,
