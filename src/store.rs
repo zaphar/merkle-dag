@@ -11,13 +11,17 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-pub mod dag;
-pub mod hash;
-pub mod node;
-pub mod prelude;
 
-#[cfg(test)]
-mod test;
+use crate::hash::{ByteEncoder, HashWriter};
+use crate::node::Node;
 
-#[cfg(all(test, feature = "proptest"))]
-mod proptest;
+pub enum StoreError {}
+
+pub trait Store<N, HW, const HASH_LEN: usize>
+where
+    N: ByteEncoder,
+    HW: HashWriter<HASH_LEN>,
+{
+    fn get(&self, id: &[u8; HASH_LEN]) -> &Node<N, HW, HASH_LEN>;
+    fn store(&mut self, node: Node<N, HW, HASH_LEN>) -> Result<(), StoreError>;
+}
