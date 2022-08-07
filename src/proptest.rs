@@ -17,7 +17,7 @@ use proptest::prelude::*;
 
 use crate::prelude::*;
 
-type TestDag = Merkle<BTreeMap<[u8; 8], Node<String, DefaultHasher, 8>>, String, DefaultHasher, 8>;
+type TestDag = Merkle<BTreeMap<[u8; 8], Node<DefaultHasher, 8>>, DefaultHasher, 8>;
 
 fn simple_edge_strategy(
     nodes_count: usize,
@@ -79,7 +79,7 @@ proptest! {
         let mut node_set = BTreeSet::new();
         for (idx, n) in nodes.iter().cloned().enumerate() {
             if !parent_idxs.contains(&idx) {
-                let node_id = dag.add_node(n, BTreeSet::new()).unwrap();
+                let node_id = dag.add_node(n.as_bytes(), BTreeSet::new()).unwrap();
                 node_set.insert(node_id.clone());
                 let parent = idx % parent_count;
                 if dependents.contains_key(&parent) {
@@ -114,7 +114,7 @@ proptest! {
                 continue;
             }
             for root in roots.iter() {
-                if let NodeCompare::After = dag.compare(root, node_id) {
+                if let NodeCompare::After = dag.compare(root, node_id).unwrap() {
                     // success
                     is_descendant = true;
                 }
@@ -125,7 +125,7 @@ proptest! {
         for left_root in roots.iter() {
             for right_root in roots.iter() {
                 if left_root != right_root {
-                    assert_eq!(dag.compare(left_root, right_root), NodeCompare::Uncomparable);
+                    assert_eq!(dag.compare(left_root, right_root).unwrap(), NodeCompare::Uncomparable);
                 }
             }
         }

@@ -11,8 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#[cfg(feature = "blake2")]
+pub mod blake2;
 pub mod dag;
 pub mod hash;
+#[cfg(feature = "rusty-leveldb")]
+pub mod leveldb;
 pub mod node;
 pub mod prelude;
 pub mod store;

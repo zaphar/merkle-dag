@@ -15,9 +15,9 @@
 use std::{collections::BTreeSet, marker::PhantomData};
 
 use crate::{
-    hash::{ByteEncoder, HashWriter},
+    hash::HashWriter,
     node::Node,
-    store::{Store, StoreError},
+    store::{Result, Store, StoreError},
 };
 
 /// Node comparison values. In a given Merkle DAG a Node can come `After`, `Before`, be `Equivalent`, or `Uncomparable`.
@@ -44,22 +44,20 @@ pub enum NodeCompare {
 /// A merkle DAG instance is tied to a specific implementation of the HashWriter interface to ensure
 /// that all hash identifiers are of the same hash algorithm.
 #[derive(Clone, Debug)]
-pub struct Merkle<S, N, HW, const HASH_LEN: usize>
+pub struct Merkle<S, HW, const HASH_LEN: usize>
 where
-    N: ByteEncoder,
     HW: HashWriter<HASH_LEN>,
-    S: Store<N, HW, HASH_LEN>,
+    S: Store<HW, HASH_LEN>,
 {
     roots: BTreeSet<[u8; HASH_LEN]>,
     nodes: S,
-    _phantom_node: PhantomData<Node<N, HW, HASH_LEN>>,
+    _phantom_node: PhantomData<Node<HW, HASH_LEN>>,
 }
 
-impl<S, N, HW, const HASH_LEN: usize> Merkle<S, N, HW, HASH_LEN>
+impl<S, HW, const HASH_LEN: usize> Merkle<S, HW, HASH_LEN>
 where
-    N: ByteEncoder,
     HW: HashWriter<HASH_LEN>,
-    S: Store<N, HW, HASH_LEN>,
+    S: Store<HW, HASH_LEN>,
 {
     /// Construct a new empty DAG. The empty DAG is also the default for a DAG.
     pub fn new() -> Self {
@@ -72,20 +70,20 @@ where
     ///
     /// One result of not constructing/adding nodes in this way is that we ensure that we always satisfy
     /// the implementation rule in the merkel-crdt's whitepaper.
-    pub fn add_node<'a>(
+    pub fn add_node<'a, N: Into<Vec<u8>>>(
         &'a mut self,
         item: N,
         dependency_ids: BTreeSet<[u8; HASH_LEN]>,
-    ) -> Result<[u8; HASH_LEN], StoreError> {
-        let node = Node::<N, HW, HASH_LEN>::new(item, dependency_ids.clone());
+    ) -> Result<[u8; HASH_LEN]> {
+        let node = Node::<HW, HASH_LEN>::new(item.into(), dependency_ids.clone());
         let id = node.id().clone();
-        if self.nodes.contains(&id) {
+        if self.nodes.contains(&id)? {
             // We've already added this node so there is nothing left to do.
             return Ok(id);
         }
         let mut root_removals = Vec::new();
         for dep_id in dependency_ids.iter() {
-            if !self.nodes.contains(dep_id) {
+            if !self.nodes.contains(dep_id)? {
                 return Err(StoreError::NoSuchDependents);
             }
             // If any of our dependencies is in the roots pointer list then
@@ -103,12 +101,12 @@ where
     }
 
     /// Check if we already have a copy of a node.
-    pub fn check_for_node(&self, id: &[u8; HASH_LEN]) -> bool {
+    pub fn check_for_node(&self, id: &[u8; HASH_LEN]) -> Result<bool> {
         return self.nodes.contains(id);
     }
 
     /// Get a node from the DAG by it's hash identifier if it exists.
-    pub fn get_node_by_id(&self, id: &[u8; HASH_LEN]) -> Option<&Node<N, HW, HASH_LEN>> {
+    pub fn get_node_by_id(&self, id: &[u8; HASH_LEN]) -> Result<Option<Node<HW, HASH_LEN>>> {
         self.nodes.get(id)
     }
 
@@ -127,30 +125,30 @@ where
     /// then returns `NodeCompare::After`. If both id's are equal then the returns
     /// `NodeCompare::Equivalent`. If neither id are parts of the same subgraph then returns
     /// `NodeCompare::Uncomparable`.
-    pub fn compare(&self, left: &[u8; HASH_LEN], right: &[u8; HASH_LEN]) -> NodeCompare {
-        if left == right {
+    pub fn compare(&self, left: &[u8; HASH_LEN], right: &[u8; HASH_LEN]) -> Result<NodeCompare> {
+        Ok(if left == right {
             NodeCompare::Equivalent
         } else {
             // Is left node an ancestor of right node?
-            if self.search_graph(right, left) {
+            if self.search_graph(right, left)? {
                 NodeCompare::Before
                 // is right node an ancestor of left node?
-            } else if self.search_graph(left, right) {
+            } else if self.search_graph(left, right)? {
                 NodeCompare::After
             } else {
                 NodeCompare::Uncomparable
             }
-        }
+        })
     }
 
-    fn search_graph(&self, root_id: &[u8; HASH_LEN], search_id: &[u8; HASH_LEN]) -> bool {
+    fn search_graph(&self, root_id: &[u8; HASH_LEN], search_id: &[u8; HASH_LEN]) -> Result<bool> {
         if root_id == search_id {
-            return true;
+            return Ok(true);
         }
-        let root_node = match self.get_node_by_id(root_id) {
+        let root_node = match self.get_node_by_id(root_id)? {
             Some(n) => n,
             None => {
-                return false;
+                return Ok(false);
             }
         };
         let mut stack = vec![root_node];
@@ -159,23 +157,22 @@ where
             let deps = node.dependency_ids();
             for dep in deps {
                 if search_id == dep {
-                    return true;
+                    return Ok(true);
                 }
-                stack.push(match self.get_node_by_id(dep) {
+                stack.push(match self.get_node_by_id(dep)? {
                     Some(n) => n,
                     None => panic!("Invalid DAG STATE encountered"),
                 })
             }
         }
-        return false;
+        return Ok(false);
     }
 }
 
-impl<S, N, HW, const HASH_LEN: usize> Default for Merkle<S, N, HW, HASH_LEN>
+impl<S, HW, const HASH_LEN: usize> Default for Merkle<S, HW, HASH_LEN>
 where
-    N: ByteEncoder,
     HW: HashWriter<HASH_LEN>,
-    S: Store<N, HW, HASH_LEN>,
+    S: Store<HW, HASH_LEN>,
 {
     fn default() -> Self {
         Self {

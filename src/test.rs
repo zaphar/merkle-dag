@@ -17,8 +17,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::prelude::*;
 
 type TestDag<'a> = Merkle<
-    BTreeMap<[u8; 8], Node<&'a str, std::collections::hash_map::DefaultHasher, 8>>,
-    &'a str,
+    BTreeMap<[u8; 8], Node<std::collections::hash_map::DefaultHasher, 8>>,
     std::collections::hash_map::DefaultHasher,
     8,
 >;
@@ -29,7 +28,7 @@ fn test_root_pointer_hygiene() {
     let quax_node_id = dag.add_node("quax", BTreeSet::new()).unwrap();
     assert_eq!(
         quax_node_id,
-        *dag.get_node_by_id(&quax_node_id).unwrap().id()
+        *dag.get_node_by_id(&quax_node_id).unwrap().unwrap().id()
     );
     assert!(dag.get_roots().contains(&quax_node_id));
     let mut dep_set = BTreeSet::new();
@@ -39,13 +38,14 @@ fn test_root_pointer_hygiene() {
     assert!(dag.get_roots().contains(&quux_node_id));
     assert_eq!(
         quux_node_id,
-        *dag.get_node_by_id(&quux_node_id).unwrap().id()
+        *dag.get_node_by_id(&quux_node_id).unwrap().unwrap().id()
     );
 }
 
 #[test]
 fn test_insert_no_such_dependents_error() {
-    let missing_dependent = Node::<&str, DefaultHasher, 8>::new("missing", BTreeSet::new());
+    let missing_dependent =
+        Node::<DefaultHasher, 8>::new("missing".as_bytes().to_vec(), BTreeSet::new());
     let mut dag = TestDag::new();
     let mut dep_set = BTreeSet::new();
     dep_set.insert(*missing_dependent.id());
@@ -60,7 +60,7 @@ fn test_adding_nodes_is_idempotent() {
     let quax_node_id = dag.add_node("quax", BTreeSet::new()).unwrap();
     assert_eq!(
         quax_node_id,
-        *dag.get_node_by_id(&quax_node_id).unwrap().id()
+        *dag.get_node_by_id(&quax_node_id).unwrap().unwrap().id()
     );
     assert!(dag.get_roots().contains(&quax_node_id));
     let root_size = dag.get_roots().len();
@@ -97,7 +97,7 @@ fn test_node_comparison_equivalent() {
     let mut dag = TestDag::new();
     let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
     assert_eq!(
-        dag.compare(&quake_node_id, &quake_node_id),
+        dag.compare(&quake_node_id, &quake_node_id).unwrap(),
         NodeCompare::Equivalent
     );
 }
@@ -113,11 +113,11 @@ fn test_node_comparison_before() {
         .add_node("quell", BTreeSet::from([qualm_node_id.clone()]))
         .unwrap();
     assert_eq!(
-        dag.compare(&quake_node_id, &qualm_node_id),
+        dag.compare(&quake_node_id, &qualm_node_id).unwrap(),
         NodeCompare::Before
     );
     assert_eq!(
-        dag.compare(&quake_node_id, &quell_node_id),
+        dag.compare(&quake_node_id, &quell_node_id).unwrap(),
         NodeCompare::Before
     );
 }
@@ -133,11 +133,11 @@ fn test_node_comparison_after() {
         .add_node("quell", BTreeSet::from([qualm_node_id.clone()]))
         .unwrap();
     assert_eq!(
-        dag.compare(&qualm_node_id, &quake_node_id),
+        dag.compare(&qualm_node_id, &quake_node_id).unwrap(),
         NodeCompare::After
     );
     assert_eq!(
-        dag.compare(&quell_node_id, &quake_node_id),
+        dag.compare(&quell_node_id, &quake_node_id).unwrap(),
         NodeCompare::After
     );
 }
@@ -149,15 +149,15 @@ fn test_node_comparison_no_shared_graph() {
     let qualm_node_id = dag.add_node("qualm", BTreeSet::new()).unwrap();
     let quell_node_id = dag.add_node("quell", BTreeSet::new()).unwrap();
     assert_eq!(
-        dag.compare(&qualm_node_id, &quake_node_id),
+        dag.compare(&qualm_node_id, &quake_node_id).unwrap(),
         NodeCompare::Uncomparable
     );
     assert_eq!(
-        dag.compare(&quell_node_id, &quake_node_id),
+        dag.compare(&quell_node_id, &quake_node_id).unwrap(),
         NodeCompare::Uncomparable
     );
     assert_eq!(
-        dag.compare(&quell_node_id, &qualm_node_id),
+        dag.compare(&quell_node_id, &qualm_node_id).unwrap(),
         NodeCompare::Uncomparable
     );
 }

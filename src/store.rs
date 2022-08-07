@@ -13,42 +13,38 @@
 // limitations under the License.
 use std::collections::BTreeMap;
 
-use crate::{
-    hash::{ByteEncoder, HashWriter},
-    node::Node,
-};
+use crate::{hash::HashWriter, node::Node};
+
+pub type Result<T> = std::result::Result<T, StoreError>;
 
 #[derive(Debug, Clone)]
 pub enum StoreError {
-    StoreFailure,
+    StoreFailure(String),
     NoSuchDependents,
 }
 
-pub trait Store<N, HW, const HASH_LEN: usize>: Default
+pub trait Store<HW, const HASH_LEN: usize>: Default
 where
-    N: ByteEncoder,
     HW: HashWriter<HASH_LEN>,
 {
-    fn contains(&self, id: &[u8; HASH_LEN]) -> bool;
-    fn get(&self, id: &[u8; HASH_LEN]) -> Option<&Node<N, HW, HASH_LEN>>;
-    fn store(&mut self, node: Node<N, HW, HASH_LEN>) -> Result<(), StoreError>;
+    fn contains(&self, id: &[u8; HASH_LEN]) -> Result<bool>;
+    fn get(&self, id: &[u8; HASH_LEN]) -> Result<Option<Node<HW, HASH_LEN>>>;
+    fn store(&mut self, node: Node<HW, HASH_LEN>) -> Result<()>;
 }
 
-impl<N, HW, const HASH_LEN: usize> Store<N, HW, HASH_LEN>
-    for BTreeMap<[u8; HASH_LEN], Node<N, HW, HASH_LEN>>
+impl<HW, const HASH_LEN: usize> Store<HW, HASH_LEN> for BTreeMap<[u8; HASH_LEN], Node<HW, HASH_LEN>>
 where
-    N: ByteEncoder,
     HW: HashWriter<HASH_LEN>,
 {
-    fn contains(&self, id: &[u8; HASH_LEN]) -> bool {
-        self.contains_key(id)
+    fn contains(&self, id: &[u8; HASH_LEN]) -> Result<bool> {
+        Ok(self.contains_key(id))
     }
 
-    fn get(&self, id: &[u8; HASH_LEN]) -> Option<&Node<N, HW, HASH_LEN>> {
-        self.get(id)
+    fn get(&self, id: &[u8; HASH_LEN]) -> Result<Option<Node<HW, HASH_LEN>>> {
+        Ok(self.get(id).cloned())
     }
 
-    fn store(&mut self, node: Node<N, HW, HASH_LEN>) -> Result<(), StoreError> {
+    fn store(&mut self, node: Node<HW, HASH_LEN>) -> Result<()> {
         self.insert(node.id().clone(), node);
         Ok(())
     }
