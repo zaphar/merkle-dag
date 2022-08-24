@@ -16,8 +16,8 @@
 
 use std::path::Path;
 
-use crate::blake2::*;
 use crate::{
+    hash::HashWriter,
     node::Node,
     store::{Result as StoreResult, Store, StoreError},
 };
@@ -53,9 +53,10 @@ where
     }
 }
 
-impl<TM> Store<Blake2b512> for RocksStore<TM>
+impl<TM, HW> Store<HW> for RocksStore<TM>
 where
     TM: ThreadMode,
+    HW: HashWriter,
 {
     fn contains(&self, id: &[u8]) -> StoreResult<bool> {
         Ok(self
@@ -65,7 +66,7 @@ where
             .is_some())
     }
 
-    fn get(&self, id: &[u8]) -> StoreResult<Option<Node<Blake2b512>>> {
+    fn get(&self, id: &[u8]) -> StoreResult<Option<Node<HW>>> {
         Ok(
             match self
                 .store
@@ -80,7 +81,7 @@ where
         )
     }
 
-    fn store(&mut self, node: Node<Blake2b512>) -> StoreResult<()> {
+    fn store(&mut self, node: Node<HW>) -> StoreResult<()> {
         let mut buf = Vec::new();
         ciborium::ser::into_writer(&node, &mut buf).unwrap();
         self.store.put(node.id(), &buf)?;

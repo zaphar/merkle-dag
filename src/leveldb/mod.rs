@@ -18,11 +18,11 @@ use std::cell::RefCell;
 use std::path::Path;
 
 use crate::{
+    hash::HashWriter,
     node::Node,
     store::{Result, Store, StoreError},
 };
 
-use crate::blake2::*;
 use ciborium;
 use rusty_leveldb;
 
@@ -42,12 +42,15 @@ impl LevelStore {
     }
 }
 
-impl Store<Blake2b512> for LevelStore {
+impl<HW> Store<HW> for LevelStore
+where
+    HW: HashWriter,
+{
     fn contains(&self, id: &[u8]) -> Result<bool> {
         Ok(self.store.borrow_mut().get(id).is_some())
     }
 
-    fn get(&self, id: &[u8]) -> Result<Option<Node<Blake2b512>>> {
+    fn get(&self, id: &[u8]) -> Result<Option<Node<HW>>> {
         Ok(match self.store.borrow_mut().get(id) {
             Some(bs) => ciborium::de::from_reader(bs.as_slice())
                 .map_err(|e| StoreError::StoreFailure(format!("Invalid serialization {:?}", e)))?,
@@ -55,7 +58,7 @@ impl Store<Blake2b512> for LevelStore {
         })
     }
 
-    fn store(&mut self, node: Node<Blake2b512>) -> Result<()> {
+    fn store(&mut self, node: Node<HW>) -> Result<()> {
         let mut buf = Vec::new();
         ciborium::ser::into_writer(&node, &mut buf).unwrap();
         self.store.borrow_mut().put(node.id(), &buf)?;
