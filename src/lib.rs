@@ -23,6 +23,8 @@ pub mod node;
 pub mod prelude;
 #[cfg(feature = "rocksdb")]
 pub mod rocksdb;
+#[cfg(feature = "sqlite")]
+pub mod sqlite;
 pub mod store;
 
 #[cfg(test)]
