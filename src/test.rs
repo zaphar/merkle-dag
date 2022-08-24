@@ -161,3 +161,46 @@ fn test_node_comparison_no_shared_graph() {
         NodeCompare::Uncomparable
     );
 }
+
+#[cfg(feature = "cbor")]
+mod cbor_serialization_tests {
+    use super::TestDag;
+    use crate::prelude::*;
+    use ciborium::{de::from_reader, ser::into_writer};
+    use std::collections::{hash_map::DefaultHasher, BTreeSet};
+
+    #[test]
+    fn test_node_deserializaton() {
+        let mut dag = TestDag::new();
+        let simple_node_id = dag.add_node("simple", BTreeSet::new()).unwrap();
+        let mut dep_set = BTreeSet::new();
+        dep_set.insert(simple_node_id);
+        let root_node_id = dag.add_node("root", dep_set).unwrap();
+
+        let simple_node_to_serialize = dag.get_node_by_id(&simple_node_id).unwrap().unwrap();
+        let root_node_to_serialize = dag.get_node_by_id(&root_node_id).unwrap().unwrap();
+
+        let mut simple_node_vec: Vec<u8> = Vec::new();
+        let mut root_node_vec: Vec<u8> = Vec::new();
+        into_writer(&simple_node_to_serialize, &mut simple_node_vec).unwrap();
+        into_writer(&root_node_to_serialize, &mut root_node_vec).unwrap();
+
+        let simple_node_de: Node<DefaultHasher, 8> =
+            from_reader(simple_node_vec.as_slice()).unwrap();
+        let root_node_de: Node<DefaultHasher, 8> = from_reader(root_node_vec.as_slice()).unwrap();
+        assert_eq!(simple_node_to_serialize.id(), simple_node_de.id());
+        assert_eq!(simple_node_to_serialize.item_id(), simple_node_de.item_id());
+        assert_eq!(simple_node_to_serialize.item(), simple_node_de.item());
+        assert_eq!(
+            simple_node_to_serialize.dependency_ids(),
+            simple_node_de.dependency_ids()
+        );
+        assert_eq!(root_node_to_serialize.id(), root_node_de.id());
+        assert_eq!(root_node_to_serialize.item_id(), root_node_de.item_id());
+        assert_eq!(root_node_to_serialize.item(), root_node_de.item());
+        assert_eq!(
+            root_node_to_serialize.dependency_ids(),
+            root_node_de.dependency_ids()
+        );
+    }
+}
