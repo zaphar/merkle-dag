@@ -17,6 +17,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::hash::HashWriter;
 
+// NOTE(jwall): Since we enforce certain properties by construction in our DAG
+// It's important that serialization isn't able to bypass that. This struct
+// allows us to only serialize and deserialize the non-computable fields of a
+// node.
 #[derive(Serialize, Deserialize)]
 struct NodeSerde {
     item: Vec<u8>,
