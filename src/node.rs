@@ -17,6 +17,21 @@ use serde::{Deserialize, Serialize};
 
 use crate::hash::HashWriter;
 
+#[derive(Serialize, Deserialize)]
+struct NodeSerde {
+    item: Vec<u8>,
+    dependency_ids: BTreeSet<Vec<u8>>,
+}
+
+impl<HW> From<NodeSerde> for Node<HW>
+where
+    HW: HashWriter,
+{
+    fn from(ns: NodeSerde) -> Self {
+        Self::new(ns.item, ns.dependency_ids)
+    }
+}
+
 /// A node in a merkle DAG. Nodes are composed of a payload item and a set of dependency_ids.
 /// They provide a unique identifier that is formed from the bytes of the payload as well
 /// as the bytes of the dependency_ids. This is guaranteed to be the id for the same payload
@@ -28,6 +43,7 @@ use crate::hash::HashWriter;
 /// to the DAG they are stored in guaranteeing that the same Hashing implementation is used
 /// for each node in the DAG.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(from = "NodeSerde")]
 pub struct Node<HW>
 where
     HW: HashWriter,
