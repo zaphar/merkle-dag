@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //! Module implementing a store interface using LevelDB for a MerkleDag.
-//! Requires the `rusty-leveldb` interface.
+//! Requires the `rusty-leveldb` feature to be enabled.
 
 use std::cell::RefCell;
 use std::path::Path;
@@ -20,11 +20,13 @@ use std::path::Path;
 use crate::{
     hash::HashWriter,
     node::Node,
-    store::{Result, Store, StoreError},
+    store::{Result as StoreResult, Store, StoreError},
 };
 
 use ciborium;
-use rusty_leveldb;
+use rusty_leveldb::{self, Options, Status};
+
+pub type Result<T> = std::result::Result<T, Status>;
 
 /// A `Store` implementation using the rusty-leveldb port of leveldb.
 /// The Default implementation of this `Default::default()` is an in-memory
@@ -34,8 +36,12 @@ pub struct LevelStore {
 }
 
 impl LevelStore {
-    pub fn open<P: AsRef<Path>>(path: P) -> std::result::Result<Self, rusty_leveldb::Status> {
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
         let opts = Default::default();
+        Self::open_with_opts(path, opts)
+    }
+
+    pub fn open_with_opts<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self> {
         Ok(Self {
             store: RefCell::new(rusty_leveldb::DB::open(path, opts)?),
         })
@@ -46,11 +52,11 @@ impl<HW> Store<HW> for LevelStore
 where
     HW: HashWriter,
 {
-    fn contains(&self, id: &[u8]) -> Result<bool> {
+    fn contains(&self, id: &[u8]) -> StoreResult<bool> {
         Ok(self.store.borrow_mut().get(id).is_some())
     }
 
-    fn get(&self, id: &[u8]) -> Result<Option<Node<HW>>> {
+    fn get(&self, id: &[u8]) -> StoreResult<Option<Node<HW>>> {
         Ok(match self.store.borrow_mut().get(id) {
             Some(bs) => ciborium::de::from_reader(bs.as_slice())
                 .map_err(|e| StoreError::StoreFailure(format!("Invalid serialization {:?}", e)))?,
@@ -58,7 +64,7 @@ where
         })
     }
 
-    fn store(&mut self, node: Node<HW>) -> Result<()> {
+    fn store(&mut self, node: Node<HW>) -> StoreResult<()> {
         let mut buf = Vec::new();
         ciborium::ser::into_writer(&node, &mut buf).unwrap();
         self.store.borrow_mut().put(node.id(), &buf)?;

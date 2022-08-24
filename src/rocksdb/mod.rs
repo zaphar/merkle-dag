@@ -45,8 +45,12 @@ impl<TM> RocksStore<TM>
 where
     TM: ThreadMode,
 {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
         let opts = Options::default();
+        Self::open_with_opts(path, &opts)
+    }
+
+    pub fn open_with_opts<P: AsRef<Path>>(path: P, opts: &Options) -> Result<Self> {
         Ok(Self {
             store: DBWithThreadMode::<TM>::open(&opts, path)?,
         })
