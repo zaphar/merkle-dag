@@ -11,6 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//! Module implementing a store interface using LevelDB for a MerkleDag.
+//! Requires the `rusty-leveldb` interface.
+
 use std::cell::RefCell;
 use std::path::Path;
 
@@ -23,8 +26,9 @@ use crate::blake2::*;
 use ciborium;
 use rusty_leveldb;
 
-// TODO(jwall): Add leveldb backing store for a Merkle-DAG
-
+/// A `Store` implementation using the rusty-leveldb port of leveldb.
+/// The Default implementation of this `Default::default()` is an in-memory
+/// implementation of the store.
 pub struct LevelStore {
     store: RefCell<rusty_leveldb::DB>,
 }
@@ -37,6 +41,7 @@ impl LevelStore {
         })
     }
 }
+
 impl Store<Blake2b512> for LevelStore {
     fn contains(&self, id: &[u8]) -> Result<bool> {
         Ok(self.store.borrow_mut().get(id).is_some())

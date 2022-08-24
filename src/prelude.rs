@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+//! Exports the most common set of types for this crate.
 pub use crate::dag::*;
 pub use crate::hash::*;
 pub use crate::node::*;

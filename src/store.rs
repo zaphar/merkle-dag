@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//! The MerkleDag backing store trait.
+
 use std::collections::BTreeMap;
 
 use crate::{hash::HashWriter, node::Node};
@@ -23,12 +25,16 @@ pub enum StoreError {
     NoSuchDependents,
 }
 
+/// Trait representing the backing storage interface for a `DAG`.
 pub trait Store<HW>: Default
 where
     HW: HashWriter,
 {
+    /// Checks if the `Store` contains a node with this id.
     fn contains(&self, id: &[u8]) -> Result<bool>;
+    /// Fetches a node from the `Store` by id if it exists.
     fn get(&self, id: &[u8]) -> Result<Option<Node<HW>>>;
+    /// Stores a given node.
     fn store(&mut self, node: Node<HW>) -> Result<()>;
 }
 

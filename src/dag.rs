@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//! Implementation of the MerkleDag based off of the merkle-crdt whitepaper.
 
 use std::{collections::BTreeSet, marker::PhantomData};
 
@@ -68,8 +69,8 @@ where
     /// and add it to the DAG with the given payload item and dependency id set. It is idempotent for any
     /// given set of inputs.
     ///
-    /// One result of not constructing/adding nodes in this way is that we ensure that we always satisfy
-    /// the implementation rule in the merkel-crdt's whitepaper.
+    /// One result of not constructing and then adding nodes in this way is that we ensure that we always
+    /// satisfy the implementation rule in the merkel-crdt's whitepaper.
     pub fn add_node<'a, N: Into<Vec<u8>>>(
         &'a mut self,
         item: N,
