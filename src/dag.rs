@@ -61,8 +61,12 @@ where
     S: Store<HW>,
 {
     /// Construct a new empty DAG. The empty DAG is also the default for a DAG.
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(s: S) -> Self {
+        Self {
+            nodes: s,
+            roots: Default::default(),
+            _phantom_node: PhantomData,
+        }
     }
 
     /// Add a new payload with a required set of dependency_ids. This method will construct a new node
@@ -179,7 +183,7 @@ where
 impl<S, HW> Default for Merkle<S, HW>
 where
     HW: HashWriter,
-    S: Store<HW>,
+    S: Store<HW> + Default,
 {
     fn default() -> Self {
         Self {

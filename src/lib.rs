@@ -21,6 +21,8 @@ pub mod hash;
 pub mod leveldb;
 pub mod node;
 pub mod prelude;
+#[cfg(feature = "rocksdb")]
+pub mod rocksdb;
 pub mod store;
 
 #[cfg(test)]

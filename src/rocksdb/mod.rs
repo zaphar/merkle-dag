@@ -1,0 +1,95 @@
+// Copyright 2022 Jeremy Wall (Jeremy@marzhilsltudios.com)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//! Module implementing a rocksdb store interfaces for a MerkleDag.
+//! Requires the `rocksdb` feature to be enabled.
+
+use std::path::Path;
+
+use crate::blake2::*;
+use crate::{
+    node::Node,
+    store::{Result as StoreResult, Store, StoreError},
+};
+
+use ciborium;
+use rocksdb::{DBWithThreadMode, MultiThreaded, Options, SingleThreaded, ThreadMode};
+
+pub type Result<T> = std::result::Result<T, rocksdb::Error>;
+
+pub struct RocksStore<TM>
+where
+    TM: ThreadMode,
+{
+    store: DBWithThreadMode<TM>,
+}
+
+/// Type alias for a `RocksStore<SingleThreaded>`.
+pub type SingleThreadedRocksStore = RocksStore<SingleThreaded>;
+/// Type alias for a `RocksStore<Multithreaded>`.
+pub type MultiThreadedRocksStore = RocksStore<MultiThreaded>;
+
+/// A Rocksdb `Store` implementation generic over the single and multithreaded
+/// versions.
+impl<TM> RocksStore<TM>
+where
+    TM: ThreadMode,
+{
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let opts = Options::default();
+        Ok(Self {
+            store: DBWithThreadMode::<TM>::open(&opts, path)?,
+        })
+    }
+}
+
+impl<TM> Store<Blake2b512> for RocksStore<TM>
+where
+    TM: ThreadMode,
+{
+    fn contains(&self, id: &[u8]) -> StoreResult<bool> {
+        Ok(self
+            .store
+            .get(id)
+            .map_err(|e| StoreError::StoreFailure(format!("{:?}", e)))?
+            .is_some())
+    }
+
+    fn get(&self, id: &[u8]) -> StoreResult<Option<Node<Blake2b512>>> {
+        Ok(
+            match self
+                .store
+                .get(id)
+                .map_err(|e| StoreError::StoreFailure(format!("{:?}", e)))?
+            {
+                Some(bs) => ciborium::de::from_reader(bs.as_slice()).map_err(|e| {
+                    StoreError::StoreFailure(format!("Invalid serialization {:?}", e))
+                })?,
+                None => None,
+            },
+        )
+    }
+
+    fn store(&mut self, node: Node<Blake2b512>) -> StoreResult<()> {
+        let mut buf = Vec::new();
+        ciborium::ser::into_writer(&node, &mut buf).unwrap();
+        self.store.put(node.id(), &buf)?;
+        Ok(())
+    }
+}
+
+impl From<rocksdb::Error> for StoreError {
+    fn from(err: rocksdb::Error) -> Self {
+        StoreError::StoreFailure(format!("{}", err))
+    }
+}

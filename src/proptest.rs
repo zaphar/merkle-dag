@@ -40,7 +40,7 @@ fn complex_dag_strategy(
 ) -> impl Strategy<Value = TestDag> {
     prop::collection::vec(".*", depth..nodes_count).prop_flat_map(move |payloads| {
         let nodes_len = payloads.len();
-        let mut dag = TestDag::new();
+        let mut dag = TestDag::new(BTreeMap::new());
         // partition the payloads into depth pieces
         let mut id_stack: Vec<Vec<u8>> = Vec::new();
         for chunk in payloads.chunks(nodes_len / depth) {
@@ -73,7 +73,7 @@ proptest! {
     #[test]
     fn test_dag_add_node_properties((nodes, parent_idxs) in simple_edge_strategy(100)) {
         // TODO implement the tests now
-        let mut dag = TestDag::new();
+        let mut dag = TestDag::new(BTreeMap::new());
         let parent_count = parent_idxs.len();
         let mut dependents = BTreeMap::new();
         let mut node_set = BTreeSet::new();

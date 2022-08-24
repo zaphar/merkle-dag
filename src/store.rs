@@ -26,7 +26,7 @@ pub enum StoreError {
 }
 
 /// Trait representing the backing storage interface for a `DAG`.
-pub trait Store<HW>: Default
+pub trait Store<HW>
 where
     HW: HashWriter,
 {

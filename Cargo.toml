@@ -27,8 +27,13 @@ optional = true
 version = "0.10.4"
 optional = true
 
+[dependencies.rocksdb]
+version = "0.19.0"
+optional = true
+
 [features]
 default = []
 cbor = ["dep:ciborium"]
 blake2 = ["dep:blake2"]
 rusty-leveldb = ["dep:rusty-leveldb", "blake2", "cbor"]
+rocksdb = ["dep:rocksdb", "blake2", "cbor"]

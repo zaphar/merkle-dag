@@ -23,7 +23,7 @@ type TestDag<'a> = Merkle<
 
 #[test]
 fn test_root_pointer_hygiene() {
-    let mut dag = TestDag::new();
+    let mut dag = TestDag::new(BTreeMap::new());
     let quax_node_id = dag.add_node("quax", BTreeSet::new()).unwrap();
     assert_eq!(
         quax_node_id,
@@ -45,7 +45,7 @@ fn test_root_pointer_hygiene() {
 fn test_insert_no_such_dependents_error() {
     let missing_dependent =
         Node::<DefaultHasher>::new("missing".as_bytes().to_vec(), BTreeSet::new());
-    let mut dag = TestDag::new();
+    let mut dag = TestDag::new(BTreeMap::new());
     let mut dep_set = BTreeSet::new();
     dep_set.insert(missing_dependent.id().to_vec());
     assert!(dag.add_node("foo", dep_set).is_err());
@@ -55,7 +55,7 @@ fn test_insert_no_such_dependents_error() {
 
 #[test]
 fn test_adding_nodes_is_idempotent() {
-    let mut dag = TestDag::new();
+    let mut dag = TestDag::new(BTreeMap::new());
     let quax_node_id = dag.add_node("quax", BTreeSet::new()).unwrap();
     assert_eq!(
         quax_node_id,
@@ -71,7 +71,7 @@ fn test_adding_nodes_is_idempotent() {
 
 #[test]
 fn test_adding_nodes_is_idempotent_regardless_of_dep_order() {
-    let mut dag = TestDag::new();
+    let mut dag = TestDag::new(BTreeMap::new());
     let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
     let qualm_node_id = dag.add_node("qualm", BTreeSet::new()).unwrap();
     let quell_node_id = dag.add_node("quell", BTreeSet::new()).unwrap();
@@ -105,7 +105,7 @@ fn test_adding_nodes_is_idempotent_regardless_of_dep_order() {
 
 #[test]
 fn test_node_comparison_equivalent() {
-    let mut dag = TestDag::new();
+    let mut dag = TestDag::new(BTreeMap::new());
     let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
     assert_eq!(
         dag.compare(&quake_node_id, &quake_node_id).unwrap(),
@@ -115,7 +115,7 @@ fn test_node_comparison_equivalent() {
 
 #[test]
 fn test_node_comparison_before() {
-    let mut dag = TestDag::new();
+    let mut dag = TestDag::new(BTreeMap::new());
     let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
     let qualm_node_id = dag
         .add_node("qualm", BTreeSet::from([quake_node_id.clone()]))
@@ -135,7 +135,7 @@ fn test_node_comparison_before() {
 
 #[test]
 fn test_node_comparison_after() {
-    let mut dag = TestDag::new();
+    let mut dag = TestDag::new(BTreeMap::new());
     let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
     let qualm_node_id = dag
         .add_node("qualm", BTreeSet::from([quake_node_id.clone()]))
@@ -155,7 +155,7 @@ fn test_node_comparison_after() {
 
 #[test]
 fn test_node_comparison_no_shared_graph() {
-    let mut dag = TestDag::new();
+    let mut dag = TestDag::new(BTreeMap::new());
     let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
     let qualm_node_id = dag.add_node("qualm", BTreeSet::new()).unwrap();
     let quell_node_id = dag.add_node("quell", BTreeSet::new()).unwrap();
@@ -178,11 +178,12 @@ mod cbor_serialization_tests {
     use super::TestDag;
     use crate::prelude::*;
     use ciborium::{de::from_reader, ser::into_writer};
+    use std::collections::BTreeMap;
     use std::collections::{hash_map::DefaultHasher, BTreeSet};
 
     #[test]
     fn test_node_deserializaton() {
-        let mut dag = TestDag::new();
+        let mut dag = TestDag::new(BTreeMap::new());
         let simple_node_id = dag.add_node("simple", BTreeSet::new()).unwrap();
         let mut dep_set = BTreeSet::new();
         dep_set.insert(simple_node_id.clone());
