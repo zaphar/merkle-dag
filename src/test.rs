@@ -17,9 +17,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::prelude::*;
 
 type TestDag<'a> = Merkle<
-    BTreeMap<[u8; 8], Node<std::collections::hash_map::DefaultHasher, 8>>,
+    BTreeMap<Vec<u8>, Node<std::collections::hash_map::DefaultHasher>>,
     std::collections::hash_map::DefaultHasher,
-    8,
 >;
 
 #[test]
@@ -32,7 +31,7 @@ fn test_root_pointer_hygiene() {
     );
     assert!(dag.get_roots().contains(&quax_node_id));
     let mut dep_set = BTreeSet::new();
-    dep_set.insert(quax_node_id);
+    dep_set.insert(quax_node_id.clone());
     let quux_node_id = dag.add_node("quux", dep_set).unwrap();
     assert!(!dag.get_roots().contains(&quax_node_id));
     assert!(dag.get_roots().contains(&quux_node_id));
@@ -45,10 +44,10 @@ fn test_root_pointer_hygiene() {
 #[test]
 fn test_insert_no_such_dependents_error() {
     let missing_dependent =
-        Node::<DefaultHasher, 8>::new("missing".as_bytes().to_vec(), BTreeSet::new());
+        Node::<DefaultHasher>::new("missing".as_bytes().to_vec(), BTreeSet::new());
     let mut dag = TestDag::new();
     let mut dep_set = BTreeSet::new();
-    dep_set.insert(*missing_dependent.id());
+    dep_set.insert(missing_dependent.id().to_vec());
     assert!(dag.add_node("foo", dep_set).is_err());
     assert!(dag.get_roots().is_empty());
     assert!(dag.get_nodes().is_empty());
@@ -76,17 +75,29 @@ fn test_adding_nodes_is_idempotent_regardless_of_dep_order() {
     let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
     let qualm_node_id = dag.add_node("qualm", BTreeSet::new()).unwrap();
     let quell_node_id = dag.add_node("quell", BTreeSet::new()).unwrap();
-    let dep_ids = BTreeSet::from([quake_node_id, qualm_node_id, quell_node_id]);
+    let dep_ids = BTreeSet::from([
+        quake_node_id.clone(),
+        qualm_node_id.clone(),
+        quell_node_id.clone(),
+    ]);
     dag.add_node("foo", dep_ids).unwrap();
     let root_size = dag.get_roots().len();
     let nodes_size = dag.get_nodes().len();
 
-    let dep_ids = BTreeSet::from([quell_node_id, quake_node_id, qualm_node_id]);
+    let dep_ids = BTreeSet::from([
+        quell_node_id.clone(),
+        quake_node_id.clone(),
+        qualm_node_id.clone(),
+    ]);
     dag.add_node("foo", dep_ids).unwrap();
     assert_eq!(root_size, dag.get_roots().len());
     assert_eq!(nodes_size, dag.get_nodes().len());
 
-    let dep_ids = BTreeSet::from([qualm_node_id, quell_node_id, quake_node_id]);
+    let dep_ids = BTreeSet::from([
+        qualm_node_id.clone(),
+        quell_node_id.clone(),
+        quake_node_id.clone(),
+    ]);
     dag.add_node("foo", dep_ids).unwrap();
     assert_eq!(root_size, dag.get_roots().len());
     assert_eq!(nodes_size, dag.get_nodes().len());
@@ -174,20 +185,25 @@ mod cbor_serialization_tests {
         let mut dag = TestDag::new();
         let simple_node_id = dag.add_node("simple", BTreeSet::new()).unwrap();
         let mut dep_set = BTreeSet::new();
-        dep_set.insert(simple_node_id);
+        dep_set.insert(simple_node_id.clone());
         let root_node_id = dag.add_node("root", dep_set).unwrap();
 
-        let simple_node_to_serialize = dag.get_node_by_id(&simple_node_id).unwrap().unwrap();
-        let root_node_to_serialize = dag.get_node_by_id(&root_node_id).unwrap().unwrap();
+        let simple_node_to_serialize = dag
+            .get_node_by_id(simple_node_id.as_slice())
+            .unwrap()
+            .unwrap();
+        let root_node_to_serialize = dag
+            .get_node_by_id(root_node_id.as_slice())
+            .unwrap()
+            .unwrap();
 
         let mut simple_node_vec: Vec<u8> = Vec::new();
         let mut root_node_vec: Vec<u8> = Vec::new();
         into_writer(&simple_node_to_serialize, &mut simple_node_vec).unwrap();
         into_writer(&root_node_to_serialize, &mut root_node_vec).unwrap();
 
-        let simple_node_de: Node<DefaultHasher, 8> =
-            from_reader(simple_node_vec.as_slice()).unwrap();
-        let root_node_de: Node<DefaultHasher, 8> = from_reader(root_node_vec.as_slice()).unwrap();
+        let simple_node_de: Node<DefaultHasher> = from_reader(simple_node_vec.as_slice()).unwrap();
+        let root_node_de: Node<DefaultHasher> = from_reader(root_node_vec.as_slice()).unwrap();
         assert_eq!(simple_node_to_serialize.id(), simple_node_de.id());
         assert_eq!(simple_node_to_serialize.item_id(), simple_node_de.item_id());
         assert_eq!(simple_node_to_serialize.item(), simple_node_de.item());

@@ -23,29 +23,29 @@ pub enum StoreError {
     NoSuchDependents,
 }
 
-pub trait Store<HW, const HASH_LEN: usize>: Default
+pub trait Store<HW>: Default
 where
-    HW: HashWriter<HASH_LEN>,
+    HW: HashWriter,
 {
-    fn contains(&self, id: &[u8; HASH_LEN]) -> Result<bool>;
-    fn get(&self, id: &[u8; HASH_LEN]) -> Result<Option<Node<HW, HASH_LEN>>>;
-    fn store(&mut self, node: Node<HW, HASH_LEN>) -> Result<()>;
+    fn contains(&self, id: &[u8]) -> Result<bool>;
+    fn get(&self, id: &[u8]) -> Result<Option<Node<HW>>>;
+    fn store(&mut self, node: Node<HW>) -> Result<()>;
 }
 
-impl<HW, const HASH_LEN: usize> Store<HW, HASH_LEN> for BTreeMap<[u8; HASH_LEN], Node<HW, HASH_LEN>>
+impl<HW> Store<HW> for BTreeMap<Vec<u8>, Node<HW>>
 where
-    HW: HashWriter<HASH_LEN>,
+    HW: HashWriter,
 {
-    fn contains(&self, id: &[u8; HASH_LEN]) -> Result<bool> {
+    fn contains(&self, id: &[u8]) -> Result<bool> {
         Ok(self.contains_key(id))
     }
 
-    fn get(&self, id: &[u8; HASH_LEN]) -> Result<Option<Node<HW, HASH_LEN>>> {
+    fn get(&self, id: &[u8]) -> Result<Option<Node<HW>>> {
         Ok(self.get(id).cloned())
     }
 
-    fn store(&mut self, node: Node<HW, HASH_LEN>) -> Result<()> {
-        self.insert(node.id().clone(), node);
+    fn store(&mut self, node: Node<HW>) -> Result<()> {
+        self.insert(node.id().to_vec(), node);
         Ok(())
     }
 }

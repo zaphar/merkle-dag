@@ -17,7 +17,7 @@ use proptest::prelude::*;
 
 use crate::prelude::*;
 
-type TestDag = Merkle<BTreeMap<[u8; 8], Node<DefaultHasher, 8>>, DefaultHasher, 8>;
+type TestDag = Merkle<BTreeMap<Vec<u8>, Node<DefaultHasher>>, DefaultHasher>;
 
 fn simple_edge_strategy(
     nodes_count: usize,
@@ -42,10 +42,10 @@ fn complex_dag_strategy(
         let nodes_len = payloads.len();
         let mut dag = TestDag::new();
         // partition the payloads into depth pieces
-        let mut id_stack: Vec<[u8; 8]> = Vec::new();
+        let mut id_stack: Vec<Vec<u8>> = Vec::new();
         for chunk in payloads.chunks(nodes_len / depth) {
             // loop through the partions adding each partions nodes to the dag.
-            let dep_sets: Vec<BTreeSet<[u8; 8]>> = if id_stack.is_empty() {
+            let dep_sets: Vec<BTreeSet<Vec<u8>>> = if id_stack.is_empty() {
                 vec![BTreeSet::new()]
             } else {
                 let mut dep_sets = Vec::new();
@@ -83,7 +83,7 @@ proptest! {
                 node_set.insert(node_id.clone());
                 let parent = idx % parent_count;
                 if dependents.contains_key(&parent) {
-                    dependents.get_mut(&parent).map(|v: &mut BTreeSet<[u8; 8]>| v.insert(node_id));
+                    dependents.get_mut(&parent).map(|v: &mut BTreeSet<Vec<u8>>| v.insert(node_id));
                 } else {
                     dependents.insert(parent, BTreeSet::from([node_id]));
                 }

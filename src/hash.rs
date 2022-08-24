@@ -17,21 +17,21 @@ use std::hash::Hasher;
 /// Utility Trait to specify the hashing algorithm and provide a common
 /// interface for that algorithm to provide. This interface is expected to
 /// be stateful.
-pub trait HashWriter<const LEN: usize>: Default {
+pub trait HashWriter: Default {
     /// Record bytes from an iterator into our hash algorithm.
     fn record<I: Iterator<Item = u8>>(&mut self, bs: I);
 
     /// Provide the current hash value based on the bytes that have so far been recorded.
-    fn hash(&self) -> [u8; LEN];
+    fn hash(&self) -> Vec<u8>;
 }
 
-impl HashWriter<8> for DefaultHasher {
+impl HashWriter for DefaultHasher {
     fn record<I: Iterator<Item = u8>>(&mut self, iter: I) {
         let bytes = iter.collect::<Vec<u8>>();
         self.write(bytes.as_slice());
     }
 
-    fn hash(&self) -> [u8; 8] {
-        self.finish().to_le_bytes()
+    fn hash(&self) -> Vec<u8> {
+        self.finish().to_le_bytes().to_vec()
     }
 }

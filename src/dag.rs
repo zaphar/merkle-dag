@@ -44,20 +44,20 @@ pub enum NodeCompare {
 /// A merkle DAG instance is tied to a specific implementation of the HashWriter interface to ensure
 /// that all hash identifiers are of the same hash algorithm.
 #[derive(Clone, Debug)]
-pub struct Merkle<S, HW, const HASH_LEN: usize>
+pub struct Merkle<S, HW>
 where
-    HW: HashWriter<HASH_LEN>,
-    S: Store<HW, HASH_LEN>,
+    HW: HashWriter,
+    S: Store<HW>,
 {
-    roots: BTreeSet<[u8; HASH_LEN]>,
+    roots: BTreeSet<Vec<u8>>,
     nodes: S,
-    _phantom_node: PhantomData<Node<HW, HASH_LEN>>,
+    _phantom_node: PhantomData<Node<HW>>,
 }
 
-impl<S, HW, const HASH_LEN: usize> Merkle<S, HW, HASH_LEN>
+impl<S, HW> Merkle<S, HW>
 where
-    HW: HashWriter<HASH_LEN>,
-    S: Store<HW, HASH_LEN>,
+    HW: HashWriter,
+    S: Store<HW>,
 {
     /// Construct a new empty DAG. The empty DAG is also the default for a DAG.
     pub fn new() -> Self {
@@ -73,13 +73,19 @@ where
     pub fn add_node<'a, N: Into<Vec<u8>>>(
         &'a mut self,
         item: N,
-        dependency_ids: BTreeSet<[u8; HASH_LEN]>,
-    ) -> Result<[u8; HASH_LEN]> {
-        let node = Node::<HW, HASH_LEN>::new(item.into(), dependency_ids.clone());
-        let id = node.id().clone();
-        if self.nodes.contains(&id)? {
+        dependency_ids: BTreeSet<Vec<u8>>,
+    ) -> Result<Vec<u8>> {
+        let node = Node::<HW>::new(item.into(), dependency_ids.clone());
+        let id = node.id().to_vec();
+        if self.nodes.contains(id.as_slice())? {
             // We've already added this node so there is nothing left to do.
-            return Ok(id);
+            return Ok(self
+                .nodes
+                .get(id.as_slice())
+                .unwrap()
+                .unwrap()
+                .id()
+                .to_vec());
         }
         let mut root_removals = Vec::new();
         for dep_id in dependency_ids.iter() {
@@ -96,22 +102,22 @@ where
         for removal in root_removals {
             self.roots.remove(removal);
         }
-        self.roots.insert(id);
-        Ok(id)
+        self.roots.insert(id.to_vec());
+        Ok(id.to_vec())
     }
 
     /// Check if we already have a copy of a node.
-    pub fn check_for_node(&self, id: &[u8; HASH_LEN]) -> Result<bool> {
+    pub fn check_for_node(&self, id: &[u8]) -> Result<bool> {
         return self.nodes.contains(id);
     }
 
     /// Get a node from the DAG by it's hash identifier if it exists.
-    pub fn get_node_by_id(&self, id: &[u8; HASH_LEN]) -> Result<Option<Node<HW, HASH_LEN>>> {
+    pub fn get_node_by_id(&self, id: &[u8]) -> Result<Option<Node<HW>>> {
         self.nodes.get(id)
     }
 
     /// Get the set of root node ids.
-    pub fn get_roots(&self) -> &BTreeSet<[u8; HASH_LEN]> {
+    pub fn get_roots(&self) -> &BTreeSet<Vec<u8>> {
         &self.roots
     }
 
@@ -125,7 +131,7 @@ where
     /// then returns `NodeCompare::After`. If both id's are equal then the returns
     /// `NodeCompare::Equivalent`. If neither id are parts of the same subgraph then returns
     /// `NodeCompare::Uncomparable`.
-    pub fn compare(&self, left: &[u8; HASH_LEN], right: &[u8; HASH_LEN]) -> Result<NodeCompare> {
+    pub fn compare(&self, left: &[u8], right: &[u8]) -> Result<NodeCompare> {
         Ok(if left == right {
             NodeCompare::Equivalent
         } else {
@@ -141,7 +147,7 @@ where
         })
     }
 
-    fn search_graph(&self, root_id: &[u8; HASH_LEN], search_id: &[u8; HASH_LEN]) -> Result<bool> {
+    fn search_graph(&self, root_id: &[u8], search_id: &[u8]) -> Result<bool> {
         if root_id == search_id {
             return Ok(true);
         }
@@ -169,10 +175,10 @@ where
     }
 }
 
-impl<S, HW, const HASH_LEN: usize> Default for Merkle<S, HW, HASH_LEN>
+impl<S, HW> Default for Merkle<S, HW>
 where
-    HW: HashWriter<HASH_LEN>,
-    S: Store<HW, HASH_LEN>,
+    HW: HashWriter,
+    S: Store<HW>,
 {
     fn default() -> Self {
         Self {

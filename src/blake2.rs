@@ -16,24 +16,24 @@ use blake2::digest::Digest;
 pub use blake2::{Blake2b512, Blake2s256};
 
 macro_rules! hash_writer_impl {
-    ($tname:ident, $size:expr) => {
-        impl HashWriter<$size> for $tname {
+    ($tname:ident) => {
+        impl HashWriter for $tname {
             fn record<I: Iterator<Item = u8>>(&mut self, bs: I) {
                 let vec: Vec<u8> = bs.collect();
                 self.update(&vec);
             }
 
-            fn hash(&self) -> [u8; $size] {
-                let mut out: [u8; $size] = Default::default();
+            fn hash(&self) -> Vec<u8> {
+                let mut out = Vec::new();
                 // This is gross but Blake2 doesn't support the
                 // non consuming version of this.
-                let mut arr = self.clone().finalize();
-                arr.swap_with_slice(&mut out);
+                let arr = self.clone().finalize();
+                out.extend(arr);
                 out
             }
         }
     };
 }
 
-hash_writer_impl!(Blake2b512, 8);
-hash_writer_impl!(Blake2s256, 4);
+hash_writer_impl!(Blake2b512);
+hash_writer_impl!(Blake2s256);
