@@ -131,3 +131,23 @@ proptest! {
         }
     }
 }
+
+#[cfg(feature = "cbor")]
+proptest! {
+    #[test]
+    fn test_node_serde_strategy(dag in complex_dag_strategy(100, 10, 3)) {
+        use ciborium::{de::from_reader, ser::into_writer};
+
+        let nodes = dag.get_nodes();
+        for (_, node) in nodes {
+            let node = node.clone();
+            let mut buf: Vec<u8> = Vec::new();
+            into_writer(&node, &mut buf).unwrap();
+            let node_de: Node<DefaultHasher> = from_reader(buf.as_slice()).unwrap();
+            assert_eq!(node.id(), node_de.id());
+            assert_eq!(node.item_id(), node_de.item_id());
+            assert_eq!(node.item(), node_de.item());
+            assert_eq!(node.dependency_ids(), node_de.dependency_ids());
+        }
+    }
+}
