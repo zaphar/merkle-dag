@@ -120,4 +120,8 @@ where
     pub fn dependency_ids(&self) -> &BTreeSet<Vec<u8>> {
         &self.dependency_ids
     }
+
+    pub fn out_degree(&self) -> usize {
+        self.dependency_ids.len()
+    }
 }

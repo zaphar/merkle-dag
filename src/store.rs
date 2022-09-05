@@ -13,7 +13,7 @@
 // limitations under the License.
 //! The MerkleDag backing store trait.
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, hash::Hash};
 
 use crate::{hash::HashWriter, node::Node};
 
@@ -38,7 +38,9 @@ where
     fn store(&mut self, node: Node<HW>) -> Result<()>;
 }
 
-impl<HW> Store<HW> for BTreeMap<Vec<u8>, Node<HW>>
+pub type BTreeStore<HW> = BTreeMap<Vec<u8>, Node<HW>>;
+
+impl<HW> Store<HW> for BTreeStore<HW>
 where
     HW: HashWriter,
 {
