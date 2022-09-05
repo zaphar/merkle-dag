@@ -13,7 +13,7 @@
 // limitations under the License.
 //! The MerkleDag backing store trait.
 
-use std::{collections::BTreeMap, hash::Hash};
+use std::collections::BTreeMap;
 
 use crate::{hash::HashWriter, node::Node};
 
