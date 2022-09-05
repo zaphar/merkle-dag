@@ -21,6 +21,9 @@ use crate::{
     store::{Result, Store, StoreError},
 };
 
+mod iter;
+pub use iter::*;
+
 /// Node comparison values. In a given Merkle DAG a Node can come `After`, `Before`, be `Equivalent`, or `Uncomparable`.
 /// If the two nodes have the same id they are eqivalent. If two nodes are not part of the same sub graph within the DAG
 /// then they are Uncomparable. If one node is an ancestor of another DAG then that node comes before the other. If the
@@ -152,26 +155,35 @@ where
         })
     }
 
+    pub fn gap_fill_iter<'dag, 'iter>(
+        &'dag self,
+        search_nodes: BTreeSet<Vec<u8>>,
+    ) -> Gap<'iter, S, HW>
+    where
+        'dag: 'iter,
+    {
+        Gap::new(self, search_nodes)
+    }
+
     /// Find the immediate next non descendant nodes in this graph for the given `search_nodes`.
     pub fn find_next_non_descendant_nodes(
         &self,
         search_nodes: &BTreeSet<Vec<u8>>,
     ) -> Result<Vec<Node<HW>>> {
-        let mut stack: Vec<Vec<u8>> = dbg!(self.roots.iter().cloned().collect());
-        dbg!(search_nodes);
+        let mut stack: Vec<Vec<u8>> = self.roots.iter().cloned().collect();
         let mut ids = BTreeSet::new();
         while !stack.is_empty() {
-            let node_id = dbg!(stack.pop().unwrap());
+            let node_id = stack.pop().unwrap();
             let node = self.get_node_by_id(node_id.as_slice())?.unwrap();
             let deps = node.dependency_ids();
-            if dbg!(deps.len()) == 0 {
+            if deps.len() == 0 {
                 // This is a leaf node which means it's the beginning of a sub graph
                 // the search_nodes_are not part of.
                 ids.insert(node.id().to_owned());
             }
             for dep in deps {
                 // We found one of the search roots.
-                if dbg!(search_nodes.contains(dep.as_slice())) {
+                if search_nodes.contains(dep.as_slice()) {
                     // This means that the previous node is a parent of the search_roots.
                     ids.insert(node.id().to_owned());
                     continue;
