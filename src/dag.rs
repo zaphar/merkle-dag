@@ -152,6 +152,40 @@ where
         })
     }
 
+    /// Find the immediate next non descendant nodes in this graph for the given `search_nodes`.
+    pub fn find_next_non_descendant_nodes(
+        &self,
+        search_nodes: &BTreeSet<Vec<u8>>,
+    ) -> Result<Vec<Node<HW>>> {
+        let mut stack: Vec<Vec<u8>> = dbg!(self.roots.iter().cloned().collect());
+        dbg!(search_nodes);
+        let mut ids = BTreeSet::new();
+        while !stack.is_empty() {
+            let node_id = dbg!(stack.pop().unwrap());
+            let node = self.get_node_by_id(node_id.as_slice())?.unwrap();
+            let deps = node.dependency_ids();
+            if dbg!(deps.len()) == 0 {
+                // This is a leaf node which means it's the beginning of a sub graph
+                // the search_nodes_are not part of.
+                ids.insert(node.id().to_owned());
+            }
+            for dep in deps {
+                // We found one of the search roots.
+                if dbg!(search_nodes.contains(dep.as_slice())) {
+                    // This means that the previous node is a parent of the search_roots.
+                    ids.insert(node.id().to_owned());
+                    continue;
+                }
+                stack.push(dep.to_owned())
+            }
+        }
+        let mut result = Vec::new();
+        for id in ids {
+            result.push(self.get_node_by_id(id.as_slice())?.unwrap());
+        }
+        Ok(result)
+    }
+
     fn search_graph(&self, root_id: &[u8], search_id: &[u8]) -> Result<bool> {
         if root_id == search_id {
             return Ok(true);

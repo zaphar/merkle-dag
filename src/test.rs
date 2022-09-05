@@ -173,6 +173,89 @@ fn test_node_comparison_no_shared_graph() {
     );
 }
 
+#[test]
+fn test_find_next_missing_nodes_disjoint_graphs_no_deps() {
+    let mut dag1 = TestDag::new(BTreeMap::new());
+    let mut dag2 = TestDag::new(BTreeMap::new());
+    let quake_node_id = dag1.add_node("quake", BTreeSet::new()).unwrap();
+    let qualm_node_id = dag1.add_node("qualm", BTreeSet::new()).unwrap();
+    dag2.add_node("quell", BTreeSet::new()).unwrap();
+    let missing_nodes = dag1
+        .find_next_non_descendant_nodes(dag2.get_roots())
+        .unwrap();
+    assert_eq!(missing_nodes.len(), 2);
+    let mut found_quake = false;
+    let mut found_qualm = false;
+    for node in missing_nodes {
+        if node.id().to_owned() == quake_node_id {
+            found_quake = true;
+        }
+        if node.id().to_owned() == qualm_node_id {
+            found_qualm = true;
+        }
+    }
+    assert!(found_quake);
+    assert!(found_qualm);
+}
+
+#[test]
+fn test_find_next_missing_nodes_sub_graphs_one_degree_off() {
+    let mut dag1 = TestDag::new(BTreeMap::new());
+    let mut dag2 = TestDag::new(BTreeMap::new());
+    dag1.add_node("quake", BTreeSet::new()).unwrap();
+    let quake_node_id = dag2.add_node("quake", BTreeSet::new()).unwrap();
+
+    let mut deps = BTreeSet::new();
+    deps.insert(quake_node_id);
+    let qualm_node_id = dag1.add_node("qualm", deps).unwrap();
+
+    let missing_nodes = dag1
+        .find_next_non_descendant_nodes(dag2.get_roots())
+        .unwrap();
+    assert_eq!(missing_nodes.len(), 1);
+    let mut found_qualm = false;
+    for node in missing_nodes {
+        if node.id().to_owned() == qualm_node_id {
+            found_qualm = true;
+        }
+    }
+    assert!(found_qualm);
+}
+
+#[test]
+fn test_find_next_missing_nodes_sub_graphs_two_degree_off() {
+    let mut dag1 = TestDag::new(BTreeMap::new());
+    let mut dag2 = TestDag::new(BTreeMap::new());
+    dag1.add_node("quake", BTreeSet::new()).unwrap();
+    let quake_node_id = dag2.add_node("quake", BTreeSet::new()).unwrap();
+
+    let mut deps = BTreeSet::new();
+    deps.insert(quake_node_id.clone());
+    let qualm_node_id = dag1.add_node("qualm", deps).unwrap();
+
+    deps = BTreeSet::new();
+    deps.insert(quake_node_id.clone());
+    deps.insert(qualm_node_id.clone());
+    let quell_node_id = dag1.add_node("quell", deps).unwrap();
+
+    let missing_nodes = dag1
+        .find_next_non_descendant_nodes(dag2.get_roots())
+        .unwrap();
+    assert_eq!(missing_nodes.len(), 2);
+    let mut found_qualm = false;
+    let mut found_quell = false;
+    for node in missing_nodes {
+        if node.id().to_owned() == qualm_node_id {
+            found_qualm = true;
+        }
+        if node.id().to_owned() == quell_node_id {
+            found_quell = true;
+        }
+    }
+    assert!(found_qualm);
+    assert!(found_quell);
+}
+
 #[cfg(feature = "cbor")]
 mod cbor_serialization_tests {
     use super::TestDag;
