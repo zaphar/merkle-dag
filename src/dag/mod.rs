@@ -158,11 +158,11 @@ where
     pub fn gap_fill_iter<'dag, 'iter>(
         &'dag self,
         search_nodes: BTreeSet<Vec<u8>>,
-    ) -> Gap<'iter, S, HW>
+    ) -> Missing<'iter, S, HW>
     where
         'dag: 'iter,
     {
-        Gap::new(self, search_nodes)
+        Missing::new(self, search_nodes)
     }
 
     /// Find the immediate next non descendant nodes in this graph for the given `search_nodes`.

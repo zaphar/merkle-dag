@@ -18,7 +18,8 @@ use crate::hash::HashWriter;
 use crate::node::Node;
 use crate::store::{Result, Store};
 
-pub struct Gap<'dag, S, HW>
+/// An iterator over the missing nodes in a DAG given a set of root nodes.
+pub struct Missing<'dag, S, HW>
 where
     S: Store<HW>,
     HW: HashWriter,
@@ -27,15 +28,17 @@ where
     search_nodes: BTreeSet<Vec<u8>>,
 }
 
-impl<'dag, S, HW> Gap<'dag, S, HW>
+impl<'dag, S, HW> Missing<'dag, S, HW>
 where
     S: Store<HW>,
     HW: HashWriter,
 {
+    /// Create an Iterator for the missing nodes given a set of root nodes.
     pub fn new(dag: &'dag Merkle<S, HW>, search_nodes: BTreeSet<Vec<u8>>) -> Self {
         Self { dag, search_nodes }
     }
 
+    /// Returns the next set of missing nodes in the iterator.
     pub fn next(&mut self) -> Result<Option<Vec<Node<HW>>>> {
         let nodes = self
             .dag
