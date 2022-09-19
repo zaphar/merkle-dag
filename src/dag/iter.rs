@@ -18,14 +18,14 @@ use crate::hash::HashWriter;
 use crate::node::Node;
 use crate::store::{Result, Store};
 
-/// An iterator over the missing nodes in a DAG given a set of root nodes.
+/// An iterator over the missing [nodes](Node) in a [Merkle DAG](Merkle) given a set of root nodes.
 pub struct Missing<'dag, S, HW>
 where
     S: Store<HW>,
     HW: HashWriter,
 {
     dag: &'dag Merkle<S, HW>,
-    search_nodes: BTreeSet<Vec<u8>>,
+    root_nodes: BTreeSet<Vec<u8>>,
 }
 
 impl<'dag, S, HW> Missing<'dag, S, HW>
@@ -33,19 +33,17 @@ where
     S: Store<HW>,
     HW: HashWriter,
 {
-    /// Create an Iterator for the missing nodes given a set of root nodes.
-    pub fn new(dag: &'dag Merkle<S, HW>, search_nodes: BTreeSet<Vec<u8>>) -> Self {
-        Self { dag, search_nodes }
+    /// Create an iterator for the missing [nodes](Node) given a set of root [nodes](Node).
+    pub fn new(dag: &'dag Merkle<S, HW>, root_nodes: BTreeSet<Vec<u8>>) -> Self {
+        Self { dag, root_nodes }
     }
 
-    /// Returns the next set of missing nodes in the iterator.
+    /// Returns the next set of missing [nodes](Node) in the iterator.
     pub fn next(&mut self) -> Result<Option<Vec<Node<HW>>>> {
-        let nodes = self
-            .dag
-            .find_next_non_descendant_nodes(&self.search_nodes)?;
-        self.search_nodes = BTreeSet::new();
+        let nodes = self.dag.find_next_non_descendant_nodes(&self.root_nodes)?;
+        self.root_nodes = BTreeSet::new();
         for id in nodes.iter().map(|n| n.id().to_vec()) {
-            self.search_nodes.insert(id);
+            self.root_nodes.insert(id);
         }
         if nodes.len() > 0 {
             Ok(Some(nodes))

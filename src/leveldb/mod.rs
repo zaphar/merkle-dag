@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//! Module implementing a store interface using LevelDB for a MerkleDag.
+//! Module implementing a [Store] interface using LevelDB for a [Merkle Dag](crate::dag::Merkle).
 //! Requires the `rusty-leveldb` feature to be enabled.
 
 use std::cell::RefCell;
@@ -28,9 +28,9 @@ use rusty_leveldb::{self, Options, Status};
 
 pub type Result<T> = std::result::Result<T, Status>;
 
-/// A `Store` implementation using the rusty-leveldb port of leveldb.
-/// The Default implementation of this `Default::default()` is an in-memory
-/// implementation of the store.
+/// A [Store] implementation using the rusty-leveldb port of leveldb.
+/// The Default implementation of this is an in-memory implementation
+/// of the store.
 pub struct LevelStore {
     store: RefCell<rusty_leveldb::DB>,
 }

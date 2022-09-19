@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//! Module implementing a rocksdb store interfaces for a MerkleDag.
+//! Module implementing a [Store] interface using rocksdb for a [Merkle Dag](crate::dag::Merkle).
 //! Requires the `rocksdb` feature to be enabled.
 
 use std::path::Path;
@@ -27,6 +27,8 @@ use rocksdb::{DBWithThreadMode, MultiThreaded, Options, SingleThreaded, ThreadMo
 
 pub type Result<T> = std::result::Result<T, rocksdb::Error>;
 
+/// A Rocksdb `Store` implementation generic over the single and multithreaded
+/// versions.
 pub struct RocksStore<TM>
 where
     TM: ThreadMode,
@@ -34,13 +36,11 @@ where
     store: DBWithThreadMode<TM>,
 }
 
-/// Type alias for a `RocksStore<SingleThreaded>`.
+/// Type alias for a [RocksStore<SingleThreaded>].
 pub type SingleThreadedRocksStore = RocksStore<SingleThreaded>;
-/// Type alias for a `RocksStore<Multithreaded>`.
+/// Type alias for a [RocksStore<Multithreaded>].
 pub type MultiThreadedRocksStore = RocksStore<MultiThreaded>;
 
-/// A Rocksdb `Store` implementation generic over the single and multithreaded
-/// versions.
 impl<TM> RocksStore<TM>
 where
     TM: ThreadMode,

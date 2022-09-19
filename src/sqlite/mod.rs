@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//! Module implementing a [Store] interface using sqlite for a [Merkle Dag](crate::dag::Merkle).
+//! Requires the `sqlite` feature to be enabled.
 use std::path::Path;
 
 use crate::{
@@ -22,6 +24,7 @@ use crate::{
 use ciborium;
 use rusqlite::{self, OptionalExtension};
 
+/// A [Store] implementation using the [rusqlite] bindings for sqlite.
 pub struct SqliteStore {
     conn: rusqlite::Connection,
 }

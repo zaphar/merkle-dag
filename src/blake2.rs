@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//! Implements the HashWriter interface for the Blake2 hash function.
+//! Implements the [HashWriter] interface for the Blake2 hash function.
 //! Requires the `blake2` feature to be enabled.
 
 use crate::hash::*;

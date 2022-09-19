@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//! `Node` types for satisfying the properties necessary for a MerkleDag.
+//! [Node] type satisfying the properties necessary for a [Merkle Dag](crate::dag::Merkle).
 
 use std::{collections::BTreeSet, marker::PhantomData};
 
@@ -38,16 +38,16 @@ where
     }
 }
 
-/// A node in a merkle DAG. Nodes are composed of a payload item and a set of dependency_ids.
+/// A node in a [Merkle DAG](crate::dag::Merkle). Nodes are composed of a payload item and a set of dependency_ids.
 /// They provide a unique identifier that is formed from the bytes of the payload as well
 /// as the bytes of the dependency_ids. This is guaranteed to be the id for the same payload
 /// and dependency ids every time making Nodes content-addressable.
 ///
 /// Nodes also expose the unique content address of the item payload alone as a convenience.
 ///
-/// Nodes are tied to a specific implementation of the HashWriter trait which is itself tied
+/// Nodes are tied to a specific implementation of the [HashWriter] trait which is itself tied
 /// to the DAG they are stored in guaranteeing that the same Hashing implementation is used
-/// for each node in the DAG.
+/// for each node in the [Merkle DAG](crate::dag::Merkle).
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(from = "NodeSerde")]
 pub struct Node<HW>

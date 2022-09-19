@@ -24,7 +24,7 @@ use crate::{
 mod iter;
 pub use iter::*;
 
-/// Node comparison values. In a given Merkle DAG a Node can come `After`, `Before`, be `Equivalent`, or `Uncomparable`.
+/// Node comparison values. In a given Merkle DAG a Node can come [After](NodeCompare::After), [Before](NodeCompare::After), be [Equivalent](NodeCompare::Equivalent), or [Uncomparable](NodeCompare::Uncomparable).
 /// If the two nodes have the same id they are eqivalent. If two nodes are not part of the same sub graph within the DAG
 /// then they are Uncomparable. If one node is an ancestor of another DAG then that node comes before the other. If the
 /// reverse is true then that node comes after the other.
@@ -42,10 +42,9 @@ pub enum NodeCompare {
 /// preserved during construction.
 ///
 /// The merkle dag consists of a set of pointers to the current known roots as well as the total set
-/// of nodes in the dag. Node payload items must be of a single type and implement the `ByteEncoder`
-/// trait.
+/// of [Nodes](Node) in the dag.
 ///
-/// A merkle DAG instance is tied to a specific implementation of the HashWriter interface to ensure
+/// A Merkle instance is tied to a specific implementation of the [HashWriter] interface to ensure
 /// that all hash identifiers are of the same hash algorithm.
 #[derive(Clone, Debug)]
 pub struct Merkle<S, HW>
@@ -63,7 +62,7 @@ where
     HW: HashWriter,
     S: Store<HW>,
 {
-    /// Construct a new empty DAG. The empty DAG is also the default for a DAG.
+    /// Construct a new DAG.
     pub fn new(s: S) -> Self {
         Self {
             nodes: s,
@@ -76,7 +75,7 @@ where
     /// and add it to the DAG with the given payload item and dependency id set. It is idempotent for any
     /// given set of inputs.
     ///
-    /// One result of not constructing and then adding nodes in this way is that we ensure that we always
+    /// One result of not constructing and then adding [nodes](Node) is that we ensure that we always
     /// satisfy the implementation rule in the merkel-crdt's whitepaper.
     pub fn add_node<'a, N: Into<Vec<u8>>>(
         &'a mut self,
@@ -114,31 +113,31 @@ where
         Ok(id.to_vec())
     }
 
-    /// Check if we already have a copy of a node.
+    /// Check if we already have a copy of a [Node].
     pub fn check_for_node(&self, id: &[u8]) -> Result<bool> {
         return self.nodes.contains(id);
     }
 
-    /// Get a node from the DAG by it's hash identifier if it exists.
+    /// Get a [Node] from the DAG by it's hash identifier if it exists.
     pub fn get_node_by_id(&self, id: &[u8]) -> Result<Option<Node<HW>>> {
         self.nodes.get(id)
     }
 
-    /// Get the set of root node ids.
+    /// Get the set of root [Node] ids.
     pub fn get_roots(&self) -> &BTreeSet<Vec<u8>> {
         &self.roots
     }
 
-    /// Get the map of all nodes in the DAG.
+    /// Get the map of all [nodes](Node) in the DAG.
     pub fn get_nodes(&self) -> &S {
         &self.nodes
     }
 
-    /// Compare two nodes by id in the graph. If the left id is an ancestor of the right node
-    /// then `returns `NodeCompare::Before`. If the right id is an ancestor of the left node
-    /// then returns `NodeCompare::After`. If both id's are equal then the returns
-    /// `NodeCompare::Equivalent`. If neither id are parts of the same subgraph then returns
-    /// `NodeCompare::Uncomparable`.
+    /// Compare two [nodes](Node) by id in the graph. If the left id is an ancestor of the right node
+    /// then returns [NodeCompare::Before]. If the right id is an ancestor of the left node
+    /// then returns [NodeCompare::After]. If both id's are equal then the returns
+    /// [NodeCompare::Equivalent]. If neither id are parts of the same subgraph then returns
+    /// [NodeCompare::Uncomparable].
     pub fn compare(&self, left: &[u8], right: &[u8]) -> Result<NodeCompare> {
         Ok(if left == right {
             NodeCompare::Equivalent
@@ -155,7 +154,8 @@ where
         })
     }
 
-    pub fn gap_fill_iter<'dag, 'iter>(
+    /// Construct a [Missing] iterator for this dag given a set of remote root nodes.
+    pub fn missing_iter<'dag, 'iter>(
         &'dag self,
         search_nodes: BTreeSet<Vec<u8>>,
     ) -> Missing<'iter, S, HW>
@@ -165,7 +165,7 @@ where
         Missing::new(self, search_nodes)
     }
 
-    /// Find the immediate next non descendant nodes in this graph for the given `search_nodes`.
+    /// Find the immediate next non descendant [nodes](Node) in this graph for the given `search_nodes`.
     pub fn find_next_non_descendant_nodes(
         &self,
         search_nodes: &BTreeSet<Vec<u8>>,
