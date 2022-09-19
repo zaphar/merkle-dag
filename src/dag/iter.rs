@@ -39,7 +39,7 @@ where
     }
 
     /// Returns the next set of missing [nodes](Node) in the iterator.
-    pub fn next(&mut self) -> Result<Option<Vec<Node<HW>>>> {
+    pub fn next_nodes(&mut self) -> Result<Option<Vec<Node<HW>>>> {
         let nodes = self.dag.find_next_non_descendant_nodes(&self.root_nodes)?;
         self.root_nodes = BTreeSet::new();
         for id in nodes.iter().map(|n| n.id().to_vec()) {
@@ -49,6 +49,22 @@ where
             Ok(Some(nodes))
         } else {
             Ok(None)
+        }
+    }
+}
+
+impl<'dag, S, HW> Iterator for Missing<'dag, S, HW>
+where
+    S: Store<HW>,
+    HW: HashWriter,
+{
+    type Item = Result<Vec<Node<HW>>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.next_nodes() {
+            Ok(Some(ns)) => Some(Ok(ns)),
+            Ok(None) => None,
+            Err(e) => Some(Err(e)),
         }
     }
 }

@@ -155,7 +155,7 @@ where
     }
 
     /// Construct a [Missing] iterator for this dag given a set of remote root nodes.
-    pub fn missing_iter<'dag, 'iter>(
+    pub fn missing<'dag, 'iter>(
         &'dag self,
         search_nodes: BTreeSet<Vec<u8>>,
     ) -> Missing<'iter, S, HW>
