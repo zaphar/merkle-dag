@@ -4,3 +4,6 @@
 
 /target
 /Cargo.lock
+tla/*.old
+tla/*.out
+tla/states
