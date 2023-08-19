@@ -12,7 +12,7 @@ version = "0.2.0"
 optional = true
 
 [dependencies.serde]
-version = "1.0.144"
+version = "<=1.0.171"
 features = ["derive"]
 
 [dependencies.proptest]
