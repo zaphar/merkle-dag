@@ -13,7 +13,7 @@
 // limitations under the License.
 //! The [Merkle Dag](crate::dag::Merkle) backing store trait.
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, error::Error, fmt};
 
 use crate::{hash::HashWriter, node::Node};
 
@@ -23,6 +23,25 @@ pub type Result<T> = std::result::Result<T, StoreError>;
 pub enum StoreError {
     StoreFailure(String),
     NoSuchDependents,
+}
+
+impl fmt::Display for StoreError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StoreError::StoreFailure(msg) => write!(f, "{}", msg),
+            StoreError::NoSuchDependents => write!(f, "No such Dependents"),
+        }
+    }
+}
+
+impl Error for StoreError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        None
+    }
+
+    fn cause(&self) -> Option<&dyn Error> {
+        self.source()
+    }
 }
 
 #[allow(async_fn_in_trait)]
