@@ -18,7 +18,7 @@ use std::{collections::BTreeSet, marker::PhantomData};
 use crate::{
     hash::HashWriter,
     node::Node,
-    store::{Result, Store, StoreError},
+    store::{AsyncStore, Result, StoreError},
 };
 
 mod iter;
@@ -50,7 +50,7 @@ pub enum NodeCompare {
 pub struct Merkle<S, HW>
 where
     HW: HashWriter,
-    S: Store<HW>,
+    S: AsyncStore<HW>,
 {
     roots: BTreeSet<Vec<u8>>,
     nodes: S,
@@ -60,7 +60,7 @@ where
 impl<S, HW> Merkle<S, HW>
 where
     HW: HashWriter,
-    S: Store<HW>,
+    S: AsyncStore<HW>,
 {
     /// Construct a new DAG.
     pub fn new(s: S) -> Self {
@@ -77,18 +77,18 @@ where
     ///
     /// One result of not constructing and then adding [nodes](Node) is that we ensure that we always
     /// satisfy the implementation rule in the merkel-crdt's whitepaper.
-    pub fn add_node<'a, N: Into<Vec<u8>>>(
+    pub async fn add_node<'a, N: Into<Vec<u8>>>(
         &'a mut self,
         item: N,
         dependency_ids: BTreeSet<Vec<u8>>,
     ) -> Result<Vec<u8>> {
         let node = Node::<HW>::new(item.into(), dependency_ids.clone());
         let id = node.id().to_vec();
-        if self.nodes.contains(id.as_slice())? {
+        if self.nodes.contains(id.as_slice()).await? {
             // We've already added this node so there is nothing left to do.
             return Ok(self
                 .nodes
-                .get(id.as_slice())
+                .get(id.as_slice()).await
                 .unwrap()
                 .unwrap()
                 .id()
@@ -96,7 +96,7 @@ where
         }
         let mut root_removals = Vec::new();
         for dep_id in dependency_ids.iter() {
-            if !self.nodes.contains(dep_id)? {
+            if !self.nodes.contains(dep_id).await? {
                 return Err(StoreError::NoSuchDependents);
             }
             // If any of our dependencies is in the roots pointer list then
@@ -105,7 +105,7 @@ where
                 root_removals.push(dep_id);
             }
         }
-        self.nodes.store(node)?;
+        self.nodes.store(node).await?;
         for removal in root_removals {
             self.roots.remove(removal);
         }
@@ -114,13 +114,13 @@ where
     }
 
     /// Check if we already have a copy of a [Node].
-    pub fn check_for_node(&self, id: &[u8]) -> Result<bool> {
-        return self.nodes.contains(id);
+    pub async fn check_for_node(&self, id: &[u8]) -> Result<bool> {
+        return self.nodes.contains(id).await;
     }
 
     /// Get a [Node] from the DAG by it's hash identifier if it exists.
-    pub fn get_node_by_id(&self, id: &[u8]) -> Result<Option<Node<HW>>> {
-        self.nodes.get(id)
+    pub async fn get_node_by_id(&self, id: &[u8]) -> Result<Option<Node<HW>>> {
+        self.nodes.get(id).await
     }
 
     /// Get the set of root [Node] ids.
@@ -138,15 +138,15 @@ where
     /// then returns [NodeCompare::After]. If both id's are equal then the returns
     /// [NodeCompare::Equivalent]. If neither id are parts of the same subgraph then returns
     /// [NodeCompare::Uncomparable].
-    pub fn compare(&self, left: &[u8], right: &[u8]) -> Result<NodeCompare> {
+    pub async fn compare(&self, left: &[u8], right: &[u8]) -> Result<NodeCompare> {
         Ok(if left == right {
             NodeCompare::Equivalent
         } else {
             // Is left node an ancestor of right node?
-            if self.search_graph(right, left)? {
+            if self.search_graph(right, left).await? {
                 NodeCompare::Before
                 // is right node an ancestor of left node?
-            } else if self.search_graph(left, right)? {
+            } else if self.search_graph(left, right).await? {
                 NodeCompare::After
             } else {
                 NodeCompare::Uncomparable
@@ -166,7 +166,7 @@ where
     }
 
     /// Find the immediate next non descendant [nodes](Node) in this graph for the given `search_nodes`.
-    pub fn find_next_non_descendant_nodes(
+    pub async fn find_next_non_descendant_nodes(
         &self,
         search_nodes: &BTreeSet<Vec<u8>>,
     ) -> Result<Vec<Node<HW>>> {
@@ -174,7 +174,7 @@ where
         let mut ids = BTreeSet::new();
         while !stack.is_empty() {
             let node_id = stack.pop().unwrap();
-            let node = self.get_node_by_id(node_id.as_slice())?.unwrap();
+            let node = self.get_node_by_id(node_id.as_slice()).await?.unwrap();
             let deps = node.dependency_ids();
             if deps.len() == 0 {
                 // This is a leaf node which means it's the beginning of a sub graph
@@ -193,16 +193,16 @@ where
         }
         let mut result = Vec::new();
         for id in ids {
-            result.push(self.get_node_by_id(id.as_slice())?.unwrap());
+            result.push(self.get_node_by_id(id.as_slice()).await?.unwrap());
         }
         Ok(result)
     }
 
-    fn search_graph(&self, root_id: &[u8], search_id: &[u8]) -> Result<bool> {
+    async fn search_graph(&self, root_id: &[u8], search_id: &[u8]) -> Result<bool> {
         if root_id == search_id {
             return Ok(true);
         }
-        let root_node = match self.get_node_by_id(root_id)? {
+        let root_node = match self.get_node_by_id(root_id).await? {
             Some(n) => n,
             None => {
                 return Ok(false);
@@ -216,7 +216,7 @@ where
                 if search_id == dep {
                     return Ok(true);
                 }
-                stack.push(match self.get_node_by_id(dep)? {
+                stack.push(match self.get_node_by_id(dep).await? {
                     Some(n) => n,
                     None => panic!("Invalid DAG STATE encountered"),
                 })
@@ -229,7 +229,7 @@ where
 impl<S, HW> Default for Merkle<S, HW>
 where
     HW: HashWriter,
-    S: Store<HW> + Default,
+    S: AsyncStore<HW> + Default,
 {
     fn default() -> Self {
         Self {

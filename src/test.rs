@@ -13,7 +13,7 @@
 // limitations under the License.
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{BTreeMap, BTreeSet};
-
+use async_std;
 use crate::prelude::*;
 
 type TestDag<'a> = Merkle<
@@ -21,66 +21,66 @@ type TestDag<'a> = Merkle<
     std::collections::hash_map::DefaultHasher,
 >;
 
-#[test]
-fn test_root_pointer_hygiene() {
+#[async_std::test]
+async fn test_root_pointer_hygiene() {
     let mut dag = TestDag::new(BTreeMap::new());
-    let quax_node_id = dag.add_node("quax", BTreeSet::new()).unwrap();
+    let quax_node_id = dag.add_node("quax", BTreeSet::new()).await.unwrap();
     assert_eq!(
         quax_node_id,
-        *dag.get_node_by_id(&quax_node_id).unwrap().unwrap().id()
+        *dag.get_node_by_id(&quax_node_id).await.unwrap().unwrap().id()
     );
     assert!(dag.get_roots().contains(&quax_node_id));
     let mut dep_set = BTreeSet::new();
     dep_set.insert(quax_node_id.clone());
-    let quux_node_id = dag.add_node("quux", dep_set).unwrap();
+    let quux_node_id = dag.add_node("quux", dep_set).await.unwrap();
     assert!(!dag.get_roots().contains(&quax_node_id));
     assert!(dag.get_roots().contains(&quux_node_id));
     assert_eq!(
         quux_node_id,
-        *dag.get_node_by_id(&quux_node_id).unwrap().unwrap().id()
+        *dag.get_node_by_id(&quux_node_id).await.unwrap().unwrap().id()
     );
 }
 
-#[test]
-fn test_insert_no_such_dependents_error() {
+#[async_std::test]
+async fn test_insert_no_such_dependents_error() {
     let missing_dependent =
         Node::<DefaultHasher>::new("missing".as_bytes().to_vec(), BTreeSet::new());
     let mut dag = TestDag::new(BTreeMap::new());
     let mut dep_set = BTreeSet::new();
     dep_set.insert(missing_dependent.id().to_vec());
-    assert!(dag.add_node("foo", dep_set).is_err());
+    assert!(dag.add_node("foo", dep_set).await.is_err());
     assert!(dag.get_roots().is_empty());
     assert!(dag.get_nodes().is_empty());
 }
 
-#[test]
-fn test_adding_nodes_is_idempotent() {
+#[async_std::test]
+async fn test_adding_nodes_is_idempotent() {
     let mut dag = TestDag::new(BTreeMap::new());
-    let quax_node_id = dag.add_node("quax", BTreeSet::new()).unwrap();
+    let quax_node_id = dag.add_node("quax", BTreeSet::new()).await.unwrap();
     assert_eq!(
         quax_node_id,
-        *dag.get_node_by_id(&quax_node_id).unwrap().unwrap().id()
+        *dag.get_node_by_id(&quax_node_id).await.unwrap().unwrap().id()
     );
     assert!(dag.get_roots().contains(&quax_node_id));
     let root_size = dag.get_roots().len();
     let nodes_size = dag.get_nodes().len();
-    dag.add_node("quax", BTreeSet::new()).unwrap();
+    dag.add_node("quax", BTreeSet::new()).await.unwrap();
     assert_eq!(root_size, dag.get_roots().len());
     assert_eq!(nodes_size, dag.get_nodes().len());
 }
 
-#[test]
-fn test_adding_nodes_is_idempotent_regardless_of_dep_order() {
+#[async_std::test]
+async fn test_adding_nodes_is_idempotent_regardless_of_dep_order() {
     let mut dag = TestDag::new(BTreeMap::new());
-    let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
-    let qualm_node_id = dag.add_node("qualm", BTreeSet::new()).unwrap();
-    let quell_node_id = dag.add_node("quell", BTreeSet::new()).unwrap();
+    let quake_node_id = dag.add_node("quake", BTreeSet::new()).await.unwrap();
+    let qualm_node_id = dag.add_node("qualm", BTreeSet::new()).await.unwrap();
+    let quell_node_id = dag.add_node("quell", BTreeSet::new()).await.unwrap();
     let dep_ids = BTreeSet::from([
         quake_node_id.clone(),
         qualm_node_id.clone(),
         quell_node_id.clone(),
     ]);
-    dag.add_node("foo", dep_ids).unwrap();
+    dag.add_node("foo", dep_ids).await.unwrap();
     let root_size = dag.get_roots().len();
     let nodes_size = dag.get_nodes().len();
 
@@ -89,7 +89,7 @@ fn test_adding_nodes_is_idempotent_regardless_of_dep_order() {
         quake_node_id.clone(),
         qualm_node_id.clone(),
     ]);
-    dag.add_node("foo", dep_ids).unwrap();
+    dag.add_node("foo", dep_ids).await.unwrap();
     assert_eq!(root_size, dag.get_roots().len());
     assert_eq!(nodes_size, dag.get_nodes().len());
 
@@ -98,90 +98,90 @@ fn test_adding_nodes_is_idempotent_regardless_of_dep_order() {
         quell_node_id.clone(),
         quake_node_id.clone(),
     ]);
-    dag.add_node("foo", dep_ids).unwrap();
+    dag.add_node("foo", dep_ids).await.unwrap();
     assert_eq!(root_size, dag.get_roots().len());
     assert_eq!(nodes_size, dag.get_nodes().len());
 }
 
-#[test]
-fn test_node_comparison_equivalent() {
+#[async_std::test]
+async fn test_node_comparison_equivalent() {
     let mut dag = TestDag::new(BTreeMap::new());
-    let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
+    let quake_node_id = dag.add_node("quake", BTreeSet::new()).await.unwrap();
     assert_eq!(
-        dag.compare(&quake_node_id, &quake_node_id).unwrap(),
+        dag.compare(&quake_node_id, &quake_node_id).await.unwrap(),
         NodeCompare::Equivalent
     );
 }
 
-#[test]
-fn test_node_comparison_before() {
+#[async_std::test]
+async fn test_node_comparison_before() {
     let mut dag = TestDag::new(BTreeMap::new());
-    let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
+    let quake_node_id = dag.add_node("quake", BTreeSet::new()).await.unwrap();
     let qualm_node_id = dag
-        .add_node("qualm", BTreeSet::from([quake_node_id.clone()]))
+        .add_node("qualm", BTreeSet::from([quake_node_id.clone()])).await
         .unwrap();
     let quell_node_id = dag
-        .add_node("quell", BTreeSet::from([qualm_node_id.clone()]))
+        .add_node("quell", BTreeSet::from([qualm_node_id.clone()])).await
         .unwrap();
     assert_eq!(
-        dag.compare(&quake_node_id, &qualm_node_id).unwrap(),
+        dag.compare(&quake_node_id, &qualm_node_id).await.unwrap(),
         NodeCompare::Before
     );
     assert_eq!(
-        dag.compare(&quake_node_id, &quell_node_id).unwrap(),
+        dag.compare(&quake_node_id, &quell_node_id).await.unwrap(),
         NodeCompare::Before
     );
 }
 
-#[test]
-fn test_node_comparison_after() {
+#[async_std::test]
+async fn test_node_comparison_after() {
     let mut dag = TestDag::new(BTreeMap::new());
-    let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
+    let quake_node_id = dag.add_node("quake", BTreeSet::new()).await.unwrap();
     let qualm_node_id = dag
-        .add_node("qualm", BTreeSet::from([quake_node_id.clone()]))
+        .add_node("qualm", BTreeSet::from([quake_node_id.clone()])).await
         .unwrap();
     let quell_node_id = dag
-        .add_node("quell", BTreeSet::from([qualm_node_id.clone()]))
+        .add_node("quell", BTreeSet::from([qualm_node_id.clone()])).await
         .unwrap();
     assert_eq!(
-        dag.compare(&qualm_node_id, &quake_node_id).unwrap(),
+        dag.compare(&qualm_node_id, &quake_node_id).await.unwrap(),
         NodeCompare::After
     );
     assert_eq!(
-        dag.compare(&quell_node_id, &quake_node_id).unwrap(),
+        dag.compare(&quell_node_id, &quake_node_id).await.unwrap(),
         NodeCompare::After
     );
 }
 
-#[test]
-fn test_node_comparison_no_shared_graph() {
+#[async_std::test]
+async fn test_node_comparison_no_shared_graph() {
     let mut dag = TestDag::new(BTreeMap::new());
-    let quake_node_id = dag.add_node("quake", BTreeSet::new()).unwrap();
-    let qualm_node_id = dag.add_node("qualm", BTreeSet::new()).unwrap();
-    let quell_node_id = dag.add_node("quell", BTreeSet::new()).unwrap();
+    let quake_node_id = dag.add_node("quake", BTreeSet::new()).await.unwrap();
+    let qualm_node_id = dag.add_node("qualm", BTreeSet::new()).await.unwrap();
+    let quell_node_id = dag.add_node("quell", BTreeSet::new()).await.unwrap();
     assert_eq!(
-        dag.compare(&qualm_node_id, &quake_node_id).unwrap(),
+        dag.compare(&qualm_node_id, &quake_node_id).await.unwrap(),
         NodeCompare::Uncomparable
     );
     assert_eq!(
-        dag.compare(&quell_node_id, &quake_node_id).unwrap(),
+        dag.compare(&quell_node_id, &quake_node_id).await.unwrap(),
         NodeCompare::Uncomparable
     );
     assert_eq!(
-        dag.compare(&quell_node_id, &qualm_node_id).unwrap(),
+        dag.compare(&quell_node_id, &qualm_node_id).await.unwrap(),
         NodeCompare::Uncomparable
     );
 }
 
-#[test]
-fn test_find_next_missing_nodes_disjoint_graphs_no_deps() {
+#[async_std::test]
+async fn test_find_next_missing_nodes_disjoint_graphs_no_deps() {
     let mut dag1 = TestDag::new(BTreeMap::new());
     let mut dag2 = TestDag::new(BTreeMap::new());
-    let quake_node_id = dag1.add_node("quake", BTreeSet::new()).unwrap();
-    let qualm_node_id = dag1.add_node("qualm", BTreeSet::new()).unwrap();
-    dag2.add_node("quell", BTreeSet::new()).unwrap();
+    let quake_node_id = dag1.add_node("quake", BTreeSet::new()).await.unwrap();
+    let qualm_node_id = dag1.add_node("qualm", BTreeSet::new()).await.unwrap();
+    dag2.add_node("quell", BTreeSet::new()).await.unwrap();
     let missing_nodes = dag1
-        .find_next_non_descendant_nodes(dag2.get_roots())
+        .find_next_non_descendant_nodes(dag2.get_roots()).await
         .unwrap();
     assert_eq!(missing_nodes.len(), 2);
     let mut found_quake = false;
@@ -198,19 +198,19 @@ fn test_find_next_missing_nodes_disjoint_graphs_no_deps() {
     assert!(found_qualm);
 }
 
-#[test]
-fn test_find_next_missing_nodes_sub_graphs_one_degree_off() {
+#[async_std::test]
+async fn test_find_next_missing_nodes_sub_graphs_one_degree_off() {
     let mut dag1 = TestDag::new(BTreeMap::new());
     let mut dag2 = TestDag::new(BTreeMap::new());
-    dag1.add_node("quake", BTreeSet::new()).unwrap();
-    let quake_node_id = dag2.add_node("quake", BTreeSet::new()).unwrap();
+    dag1.add_node("quake", BTreeSet::new()).await.unwrap();
+    let quake_node_id = dag2.add_node("quake", BTreeSet::new()).await.unwrap();
 
     let mut deps = BTreeSet::new();
     deps.insert(quake_node_id);
-    let qualm_node_id = dag1.add_node("qualm", deps).unwrap();
+    let qualm_node_id = dag1.add_node("qualm", deps).await.unwrap();
 
     let missing_nodes = dag1
-        .find_next_non_descendant_nodes(dag2.get_roots())
+        .find_next_non_descendant_nodes(dag2.get_roots()).await
         .unwrap();
     assert_eq!(missing_nodes.len(), 1);
     let mut found_qualm = false;
@@ -222,24 +222,24 @@ fn test_find_next_missing_nodes_sub_graphs_one_degree_off() {
     assert!(found_qualm);
 }
 
-#[test]
-fn test_find_next_missing_nodes_sub_graphs_two_degree_off() {
+#[async_std::test]
+async fn test_find_next_missing_nodes_sub_graphs_two_degree_off() {
     let mut dag1 = TestDag::new(BTreeMap::new());
     let mut dag2 = TestDag::new(BTreeMap::new());
-    dag1.add_node("quake", BTreeSet::new()).unwrap();
-    let quake_node_id = dag2.add_node("quake", BTreeSet::new()).unwrap();
+    dag1.add_node("quake", BTreeSet::new()).await.unwrap();
+    let quake_node_id = dag2.add_node("quake", BTreeSet::new()).await.unwrap();
 
     let mut deps = BTreeSet::new();
     deps.insert(quake_node_id.clone());
-    let qualm_node_id = dag1.add_node("qualm", deps).unwrap();
+    let qualm_node_id = dag1.add_node("qualm", deps).await.unwrap();
 
     deps = BTreeSet::new();
     deps.insert(quake_node_id.clone());
     deps.insert(qualm_node_id.clone());
-    let quell_node_id = dag1.add_node("quell", deps).unwrap();
+    let quell_node_id = dag1.add_node("quell", deps).await.unwrap();
 
     let missing_nodes = dag1
-        .find_next_non_descendant_nodes(dag2.get_roots())
+        .find_next_non_descendant_nodes(dag2.get_roots()).await
         .unwrap();
     assert_eq!(missing_nodes.len(), 2);
     let mut found_qualm = false;
@@ -264,20 +264,20 @@ mod cbor_serialization_tests {
     use std::collections::BTreeMap;
     use std::collections::{hash_map::DefaultHasher, BTreeSet};
 
-    #[test]
-    fn test_node_deserializaton() {
+    #[async_std::test]
+    async fn test_node_deserializaton() {
         let mut dag = TestDag::new(BTreeMap::new());
-        let simple_node_id = dag.add_node("simple", BTreeSet::new()).unwrap();
+        let simple_node_id = dag.add_node("simple", BTreeSet::new()).await.unwrap();
         let mut dep_set = BTreeSet::new();
         dep_set.insert(simple_node_id.clone());
-        let root_node_id = dag.add_node("root", dep_set).unwrap();
+        let root_node_id = dag.add_node("root", dep_set).await.unwrap();
 
         let simple_node_to_serialize = dag
-            .get_node_by_id(simple_node_id.as_slice())
+            .get_node_by_id(simple_node_id.as_slice()).await
             .unwrap()
             .unwrap();
         let root_node_to_serialize = dag
-            .get_node_by_id(root_node_id.as_slice())
+            .get_node_by_id(root_node_id.as_slice()).await
             .unwrap()
             .unwrap();
 

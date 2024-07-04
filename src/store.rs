@@ -25,6 +25,38 @@ pub enum StoreError {
     NoSuchDependents,
 }
 
+#[allow(async_fn_in_trait)]
+/// Trait representing the backing storage interface for a [Merkle DAG](crate::dag::Merkle).
+pub trait AsyncStore<HW>
+where
+    HW: HashWriter,
+{
+    /// Checks if the [Store] contains a [Node] with this id.
+    async fn contains(&self, id: &[u8]) -> Result<bool>;
+    /// Fetches a node from the [Store] by id if it exists.
+    async fn get(&self, id: &[u8]) -> Result<Option<Node<HW>>>;
+    /// Stores a given [Node].
+    async fn store(&mut self, node: Node<HW>) -> Result<()>;
+}
+
+impl<HW, S> AsyncStore<HW> for S
+    where
+    HW: HashWriter,
+    S: Store<HW>,
+{
+    async fn contains(&self, id: &[u8]) -> Result<bool> {
+        std::future::ready(self.contains(id)).await
+    }
+
+    async fn get(&self, id: &[u8]) -> Result<Option<Node<HW>>> {
+        std::future::ready(self.get(id)).await
+    }
+
+    async fn store(&mut self, node: Node<HW>) -> Result<()> {
+        std::future::ready(self.store(node)).await
+    }
+}
+
 /// Trait representing the backing storage interface for a [Merkle DAG](crate::dag::Merkle).
 pub trait Store<HW>
 where

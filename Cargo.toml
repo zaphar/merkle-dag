@@ -5,6 +5,12 @@ edition = "2021"
 authors = ["Jeremy Wall <jeremy@marzhillstudios.com>"]
 license = "Apache License 2.0"
 
+[dependencies]
+
+[dependencies.async-std]
+version = "1.12.0"
+features = [ "attributes" ]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.ciborium]
